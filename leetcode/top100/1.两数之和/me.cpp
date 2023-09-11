@@ -30,9 +30,8 @@ int main()
     // 计算
     vector<int> result = twoSum(nums, target);
     // 输出
-    for (vector<int>::iterator it = result.begin(); it != result.end(); it++)
-    {
-        cout << *it << " ";
+    for(int i=0; i<result.size(); i++){
+        cout<<result[i]<<" ";
     }
     return 0;
 }
