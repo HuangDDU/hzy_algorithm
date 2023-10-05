@@ -1,4 +1,3 @@
-// 基本模板
 #include <algorithm>
 #include <iostream>
 #include <set>

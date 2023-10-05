@@ -1,5 +1,4 @@
 // 这里出现了重大错误,使用表的过程中会重复使用打表中的元素.
-// // 基本模板
 // #include <algorithm>
 // #include <iostream>
 // #include <map>
