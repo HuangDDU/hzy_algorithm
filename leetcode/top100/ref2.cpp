@@ -1,52 +1,48 @@
-// 使用双端队列代替优先级队列，每次插入元素之前清空比新元素小的值，减少元素存储个数
+// 使用map打表，双针移动时右指针不会回头
 #include <iostream>
-#include <queue>
-#include <vector>
+#include<string>
+#include <unordered_map>
 using namespace std;
 
 class Solution {
 public:
-  vector<int> maxSlidingWindow(vector<int> &nums, int k) {
-    vector<int> res;
-    // 初始化窗口，建双端队列存储下标，front对应的元素比back对应的元素都打
-    deque<int> q;
-    // 窗口滑动往堆中删除、添加元素
-    for (int i = 0; i < nums.size() - k + 1; i++) {
-      if (i == 0) {
-        for (int j = 0; j < k; j++) {
-          // 只保留比当前元素大的元素
-          while (!q.empty() && nums[j] >= nums[q.back()]) {
-            q.pop_back();
-          }
-          q.push_back(j);
-        }
-      } else {
-        while (!q.empty() && nums[i + k - 1] >= nums[q.back()]) {
-          q.pop_back();
-        }
-        q.push_back(i + k - 1);
-        while (q.front() < i) {
-          // 如果队列中最大元素不在窗口内，则删除
-          q.pop_front();
-        }
+  bool check(unordered_map<char, int> m1, unordered_map<char, int> m2) {
+    // 判断m1的字符表包含了m2字符表
+    for (auto &item : m2) {
+      if (m1[item.first] < item.second) {
+        return false;
       }
-      // 堆顶元素为最大值
-      res.push_back(nums[q.front()]);
     }
-    return res;
+    return true;
+  }
+
+  string minWindow(string s, string t) {
+    int start = -1, len = INT_MAX;
+    unordered_map<char, int> s_sub_map, t_map; // s子串，t中字符表
+    for (char ch : t) {
+      t_map[ch]++;
+    }
+    int l = 0, r = -1; // [l,r]区间内的字符
+    while (r < int(s.size())) {
+      s_sub_map[s[++r]]++; // 移动右指针
+      while (check(s_sub_map, t_map) && l <= r) {
+        if (r - l + 1 < len) {
+          len = r - l + 1;
+          start = l;
+        }
+        s_sub_map[s[l]]++; // 移动左指针
+      }
+    }
+    return start == -1 ? string() : s.substr(start, len);
   }
 };
 
 int main() {
-  vector<int> nums = {1, 3, -1, -3, 5, 3, 6, 7};
-  int k = 3;
-  // [3,3,5,5,6,7]
-  // vector<int> nums = {-7, -8, 7, 5, 7, 1, 6, 0};
-  // int k = 4;
-  // [7,7,7,6,6]
+  string s = "ADOBECODEBANC", t = "ABC";
+  // "BANC"
+  // string s = "a", t = "a";
+  // string s = "a", t = "aa";
   Solution solution;
-  vector<int> res = solution.maxSlidingWindow(nums, k);
-  for (int i : res) {
-    cout << i << endl;
-  }
+  string res = solution.minWindow(s, t);
+  cout << res << endl;
 }

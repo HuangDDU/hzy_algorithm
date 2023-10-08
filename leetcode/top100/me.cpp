@@ -1,45 +1,80 @@
-// 使用堆存储滑动窗口里所有的元素值，但是堆的删除比较难搞，且堆中不允许有重复元素。
-#include <algorithm>
+// 布尔数组存储元素，最后扫描确定区间
 #include <iostream>
 #include <vector>
 using namespace std;
 
 class Solution {
 public:
-  vector<int> maxSlidingWindow(vector<int> &nums, int k) {
-    vector<int> res;
-    // 初始化窗口，建大顶堆
-    vector<int> heap(nums.begin(), nums.begin() + k);
-    // 窗口滑动往堆中删除、添加元素
-    for (int i = 0; i < nums.size() - k + 1; i++) {
-      if (i == 0) {
-        make_heap(heap.begin(), heap.end());
-      } else {
-        // 删除窗口前的元素
-        auto new_end = remove(heap.begin(), heap.end(), nums[i - 1]);
-        heap.erase(new_end, heap.end());
-        make_heap(heap.begin(), heap.end());
-        // 添加窗口后的元素
-        heap.push_back(nums[i + k - 1]);
-        push_heap(heap.begin(), heap.end());
+  vector<vector<int>> merge(vector<vector<int>> &intervals) {
+    vector<vector<int>> res;
+    vector<int> empty_res;
+    // 布尔数组存储元素
+    vector<int> bool_vector(10001, false);
+    for (int i = 0; i < intervals.size(); i++) {
+      int start = intervals[i][0],
+          end = intervals[i][1] - 1; // 使用这样的左闭右开比较好
+      if (end < start) {
+        empty_res.push_back(start);
+        continue; // 空区间
       }
-      // 堆顶元素为最大值
-      res.push_back(heap[0]);
+      for (int j = start; j <= end; j++) {
+        bool_vector[j] = true;
+      }
+    }
+    // 扫描确定区间
+    int start = -1, end = -1;
+    for (int i = 0; i < bool_vector.size(); i++) {
+      if (!bool_vector[i]) {
+        // 保存区间
+        if (!(start == -1)) {
+          res.push_back({start, end + 1}); // 左闭右开输出格式恢复
+        }
+        start = -1;
+        end = -1;
+      } else {
+        // 延申或开辟新区间
+        if (!(start == -1)) {
+          // 延申区间
+          end = i;
+        } else {
+          // 开辟区间
+          start = i;
+          end = i;
+        }
+      }
+    }
+    // 空区间填充
+    for (int i : empty_res) {
+      if (!bool_vector[i]) {
+        // 不是区间，也不是区间尾部，单独成空区间
+        if(i-1>0){
+          if((!bool_vector[i - 1])){
+            res.push_back({i, i});
+          }
+        }else{
+          res.push_back({i, i});
+        }
+      }
     }
     return res;
   }
 };
 
 int main() {
-  // vector<int> nums = {1, 3, -1, -3, 5, 3, 6, 7};
-  // int k = 3;
-  // [3,3,5,5,6,7]
-  vector<int> nums = {-7, -8, 7, 5, 7, 1, 6, 0};
-  int k = 4;
-  // [7,7,7,6,6]
+  // vector<vector<int>> intervals = {{1, 3}, {2, 6}, {8, 10}, {15, 18}};
+  // [[1,6],[8,10],[15,18]]
+  // vector<vector<int>> intervals = {{1, 4}, {4, 5}};
+  // [[1,5]]
+  // vector<vector<int>> intervals = {{1, 4}, {5, 6}};
+  // [[1,4],[5,6]]
+  vector<vector<int>> intervals = {{1, 4}, {0, 0}};
+  // [[1,4]]
   Solution solution;
-  vector<int> res = solution.maxSlidingWindow(nums, k);
-  for (int i : res) {
-    cout << i << endl;
+  vector<vector<int>> res = solution.merge(intervals);
+  for (vector<int> item : res) {
+    for (int i : item) {
+      cout << i << " ";
+    }
+    cout << endl;
   }
 }
