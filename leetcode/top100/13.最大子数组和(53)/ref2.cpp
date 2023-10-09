@@ -1,4 +1,4 @@
-// 分治求解
+// 分治求解，
 #include <iostream>
 #include <vector>
 using namespace std;
