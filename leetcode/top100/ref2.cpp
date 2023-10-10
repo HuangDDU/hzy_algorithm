@@ -3,49 +3,32 @@
 #include <set>
 #include <vector>
 using namespace std;
-
 class Solution {
 public:
     void setZeroes(vector<vector<int>>& matrix) {
         int m = matrix.size();
         int n = matrix[0].size();
-        int flag_col0 = false, flag_row0 = false;
-        // 判断第一行、第一列是否有0
+        // 第一列是否有0原本用变量保存，此处用第一个元素保存
+        int flag_col0 = false; 
         for (int i = 0; i < m; i++) {
             if (!matrix[i][0]) {
                 flag_col0 = true;
             }
-        }
-        for (int j = 0; j < n; j++) {
-            if (!matrix[0][j]) {
-                flag_row0 = true;
-            }
-        }
-        // 行列的0标记到第一行、第一列上
-        for (int i = 1; i < m; i++) {
             for (int j = 1; j < n; j++) {
                 if (!matrix[i][j]) {
                     matrix[i][0] = matrix[0][j] = 0;
                 }
             }
         }
-        // 根据第一行或第一列的0更新
-        for (int i = 1; i < m; i++) {
+        // 这里的外循环从后往前更新 
+        for (int i = m - 1; i >= 0; i--) {
             for (int j = 1; j < n; j++) {
                 if (!matrix[i][0] || !matrix[0][j]) {
                     matrix[i][j] = 0;
                 }
             }
-        }
-        // 第一行或第一列更新
-        if (flag_col0) {
-            for (int i = 0; i < m; i++) {
+            if (flag_col0) {
                 matrix[i][0] = 0;
-            }
-        }
-        if (flag_row0) {
-            for (int j = 0; j < n; j++) {
-                matrix[0][j] = 0;
             }
         }
     }
