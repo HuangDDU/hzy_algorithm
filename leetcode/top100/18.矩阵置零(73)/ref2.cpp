@@ -1,4 +1,4 @@
-// 使用第一行、列标记是否需要设置
+// 使用第一行标记是否需要设置
 #include <iostream>
 #include <set>
 #include <vector>
