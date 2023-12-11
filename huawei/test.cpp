@@ -1,8 +1,4 @@
-// 基本模板
-#include <algorithm>
 #include <iostream>
-#include <map>
-#include <string>
 #include <vector>
 using namespace std;
 
@@ -27,6 +23,7 @@ int main() {
   vector<vector<int>> F_matrix(F, vector<int>(F)); // 转换矩阵
 
   cin >> N >> M >> F >> P;
+  cout << "helloworld1" << endl;
   cin >> I >> J;
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
@@ -42,7 +39,7 @@ int main() {
     }
   }
 
-  cout << "" << endl;
+  cout << "OK" << endl;
 
   return 0;
 }
