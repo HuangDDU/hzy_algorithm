@@ -72,8 +72,8 @@ public:
 // 当前方案输出
 // 2
 // 2 3 3 0 1 0 0 2 0 1 3 0
-// 0 3 1 1 1 0
-// 3 3 1 1 2 0 
+// 2 0 1 1 1 0
+// 2 1 1 1 2 0
 
 
 int main() {
@@ -116,7 +116,7 @@ int main() {
   // TODO: 核心部分，路径计算与保存
   for (int i = 0; i < M; i++) {
     Consumer consumer = consumer_vector[i];
-    vector<vector<int>> trajectory = controller.get_trajectory(provider, consumer); // 计算从provider到consumer的路径
+    vector<vector<int>> trajectory = controller.get_trajectory(provider, consumer, false); // NOTE: 计算从provider到consumer的路径，先y后x
     if (trajectory.size() == 3) {
       // 传输轨迹发生了转弯，需要Transimtter
       int transmitter_x = trajectory[1][0], transmitter_y = trajectory[1][1]; // 轨迹上目标Transmitter的位置

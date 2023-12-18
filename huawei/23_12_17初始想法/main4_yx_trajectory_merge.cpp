@@ -1,10 +1,12 @@
 #include <iostream>
 #include <vector>
+#include <algorithm>
 using namespace std;
 
 class Provider {
 public:
   int x, y;
+  int left_transmitter_id=-1, right_transmitter_id=-1; // 方便Provider所在行的路径合并
   vector<vector<int>> target_vector; // 目标列表保存的方式
   Provider(int x, int y) {
     this->x = x;
@@ -56,6 +58,7 @@ public:
   }
 };
 
+// 原始输入
 // 5 3 2 10
 // 2 3
 // 20 15 10 10 10
@@ -69,11 +72,27 @@ public:
 // 0 10
 // 20 0
 
+// 我自己多造了一个Consumer，测试初始对Consumer的排序
+// 5 4 2 10
+// 2 3
+// 20 15 10 10 10
+// 10 10 10 20 10
+// 10 15 10 90 10
+// 10 20 10 10 10
+// 10 10 10 10 10
+// 0 0 0
+// 3 1 0
+// 1 3 0
+// 3 4 0 
+// 0 10
+// 20 0
+
+
 // 当前方案输出
 // 2
 // 2 3 3 0 1 0 0 2 0 1 3 0
-// 0 3 1 1 1 0
-// 3 3 1 1 2 0 
+// 2 0 1 1 1 0
+// 2 1 1 1 2 0
 
 
 int main() {
@@ -109,14 +128,17 @@ int main() {
   vector<Consumer> consumer_vector;     // Consumer列表
   vector<Transmitter> transmitter_vector; // Transmitter列表
   for (int i = 0; i < M; i++) {
-    consumer_vector.push_back(
-        Consumer(i+1, C_vector[i][0], C_vector[i][1], C_vector[i][2]));
+    consumer_vector.push_back(Consumer(i+1, C_vector[i][0], C_vector[i][1], C_vector[i][2]));
   }
+  // Consumer列表按照y轴方向距离Provider的远近排序，方便后续轨迹合并
+  sort(consumer_vector.begin(), consumer_vector.end(), [&](Consumer&a,Consumer&b)->bool{
+        return abs(a.y-provider.y) > abs(b.y-provider.y);
+  });
 
   // TODO: 核心部分，路径计算与保存
   for (int i = 0; i < M; i++) {
     Consumer consumer = consumer_vector[i];
-    vector<vector<int>> trajectory = controller.get_trajectory(provider, consumer); // 计算从provider到consumer的路径
+    vector<vector<int>> trajectory = controller.get_trajectory(provider, consumer, false); // NOTE: 计算从provider到consumer的路径，先y后x
     if (trajectory.size() == 3) {
       // 传输轨迹发生了转弯，需要Transimtter
       int transmitter_x = trajectory[1][0], transmitter_y = trajectory[1][1]; // 轨迹上目标Transmitter的位置
@@ -137,8 +159,28 @@ int main() {
         transmitter_vector[transmitter_id].target_vector.push_back({1, consumer.id, consumer.code_format});
       } else {
         // 不存在Transmitter，创建新的Transmitter
-        Transmitter transmitter = Transmitter(transmitter_vector.size()+1,
-                                              transmitter_x, transmitter_y);
+        transmitter_id = transmitter_vector.size()+1;
+        Transmitter transmitter = Transmitter(transmitter_id, transmitter_x, transmitter_y);
+        // TODO:轨迹合并
+        if(transmitter.y<provider.y){
+          // 放置在左边
+          if(provider.left_transmitter_id!=-1){
+            // 轨迹合并
+            auto it = find(provider.target_vector.begin(), provider.target_vector.end(), std::vector<int>{0,provider.left_transmitter_id, 0});
+            provider.target_vector.erase(it); // 删除向旧Transmitter的传播
+            transmitter.target_vector.push_back({0,provider.left_transmitter_id, 0}); // 旧Transmitter的传播由新Transmitter作为中继
+          }
+          provider.left_transmitter_id=transmitter_id;
+        }else if(transmitter.y>provider.y){
+          // 放置在右边
+          if(provider.right_transmitter_id!=-1){
+            // 轨迹合并
+            auto it = find(provider.target_vector.begin(), provider.target_vector.end(), std::vector<int>{0,provider.left_transmitter_id, 0});
+            provider.target_vector.erase(it); // 删除向旧Transmitter的传播
+            transmitter.target_vector.push_back({0,provider.left_transmitter_id, 0}); // 旧Transmitter的传播由新Transmitter作为中继
+          }
+          provider.right_transmitter_id=transmitter_id;
+        }
         provider.target_vector.push_back({0, transmitter.id, consumer.code_format});
         transmitter.target_vector.push_back({1, consumer.id, consumer.code_format});
         transmitter_vector.push_back(transmitter);
