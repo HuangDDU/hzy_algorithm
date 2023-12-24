@@ -1,48 +1,5 @@
-from enum import Enum
-
-
-class ProviderOrTransmitter:
-    def __init__(self) -> None:
-        self.x = 0
-        self.y = 0
-        self.target_vector = []
-    
-
-class Provider(ProviderOrTransmitter):
-    def __init__(self, x, y) -> None:
-        super().__init__()
-        self.x = x
-        self.y = y
-
-
-class Transmitter(ProviderOrTransmitter):
-    def __init__(self, id, x, y) -> None:
-        super().__init__()
-        self.id = id
-        self.x = x
-        self.y = y
-
-
-class Consumer():
-    def __init__(self, id, x, y, code_format) -> None:
-        self.id = id
-        self.x = x
-        self.y = y
-        self.code_format = code_format
-
-
-class Node():
-    def __init__(self, x, y, weight) -> None:
-        self.x = x
-        self.y = y
-        self.weight = weight
-        self.node_type = "EMPTY" # 枚举类型直接用字符串了。PROVIDER, CONSUMER, TRANSMITTER, EMPTY
-        self.type_id = -1
-        self.best_direction = "UNKOWN" # UP, RIGHT, DOWN, LEFT, UNKOWN
-        self.distance = -1
-        self.visited = False
-        self.child_xy_list = []
-
+from queue import Queue
+from main7_map import Provider, Transmitter, Consumer, Node
 
 class Map():
     def __init__(self, G_matrix) -> None:
@@ -53,104 +10,78 @@ class Map():
             for j in range(self.N):
                 tmp_v.append(Node(i, j, G_matrix[i][j]))
             self.node_matrix.append(tmp_v)
-                
+    
+    # 所有的Consumer都当作障碍，这里面的遍历顺序时上右下左
+    def get_neighbor_list(self, x, y):
+        neighbor_list = []
+        if x > 0 and not (self.node_matrix[x-1][y].node_type=="CONSUMER"):
+            neighbor_list.append([[x-1, y], "DOWN"]) # 当前结点在邻居结点的位置
+        if y < self.N-1 and not (self.node_matrix[x][y+1].node_type=="CONSUMER"):
+            neighbor_list.append([[x, y+1], "LEFT"])
+        if x < self.N-1 and not (self.node_matrix[x+1][y].node_type=="CONSUMER"):
+            neighbor_list.append([[x+1, y], "UP"])
+        if y > 0 and not (self.node_matrix[x][y-1].node_type=="CONSUMER"):
+            neighbor_list.append([[x, y-1], "RIGHT"])
+        return neighbor_list
         
 
 class Controller():
-    def __init__(self, provider, map) -> None:
+    def __init__(self, map, provider, consumer_vector) -> None:
+        pass
+
+    # BFS整张图，所有的Customer当作障碍
+    def bfs(self, map, provider):
+        # 队列初始化
+        q = Queue()
+        q.put((provider.x, provider.y))
         provider_node = map.node_matrix[provider.x][provider.y]
         provider_node.visited = True
         provider_node.distance = 0
-        # 十字区域的distance设置
-        for i in range(provider.x-1, -1, -1):
-            node = map.node_matrix[i][provider.y]
-            pre_node = map.node_matrix[i+1][provider.y]
-            node.visited = True
-            node.best_direction = "DOWN"
-            node.distance = node.weight + pre_node.distance
-        for i in range(provider.x+1, map.N):
-            node = map.node_matrix[i][provider.y]
-            pre_node = map.node_matrix[i-1][provider.y]
-            node.visited = True
-            node.best_direction = "UP"
-            node.distance = node.weight + pre_node.distance
-        for i in range(provider.y-1, -1, -1):
-            node = map.node_matrix[provider.x][i]
-            pre_node = map.node_matrix[provider.x][i+1]
-            node.visited = True
-            node.best_direction = "RIGHT"
-            node.distance = node.weight + pre_node.distance
-        for i in range(provider.y+1, map.N):
-            node = map.node_matrix[provider.x][i]
-            pre_node = map.node_matrix[provider.x][i-1]
-            node.visited = True
-            node.best_direction = "LEFT"
-            node.distance = node.weight + pre_node.distance
-        
-    #  递归计算距离
-    # TODO: 路径上可能有些结点是Consumer，不能穿透
-    def get_distance(self, map, provider, x, y):
-        node = map.node_matrix[x][y]
-        if node.visited:
-            # 直接访问
-            return node.distance
-        else:
-            # 根据坐标确定动态规划的方向
-            if (x < provider.x) and (y < provider.y):
-                # 当前结点在provider的左上角
-                down_distance = self.get_distance(map, provider, x+1, y)
-                right_distance = self.get_distance(map, provider, x, y + 1)
-                if down_distance <= right_distance:
-                    node.best_direction = "DOWN"
-                    node.distance = down_distance + node.weight
-                else:
-                    node.best_direction = "RIGHT"
-                    node.distance = right_distance + node.weight
-            elif (x > provider.x) and (y < provider.y):
-                # 当前结点在provider的左下角
-                up_distance = self.get_distance(map, provider, x - 1, y)
-                right_distance = self.get_distance(map, provider, x, y + 1)
-                if up_distance <= right_distance:
-                    node.best_direction = "UP"
-                    node.distance = up_distance + node.weight
-                else:
-                    node.best_direction = "RIGHT"
-                    node.distance = right_distance + node.weight
-            elif (x < provider.x) and (y > provider.y):
-                # 当前结点在provider的右上角
-                down_distance = self.get_distance(map, provider, x + 1, y)
-                left_distance = self.get_distance(map, provider, x, y - 1)
-                if down_distance <= left_distance:
-                    node.best_direction = "DOWN"
-                    node.distance = down_distance + node.weight
-                else:
-                    node.best_direction = "LEFT"
-                    node.distance = left_distance + node.weight
-            else:
-                # 当前结点在provider的右下角
-                up_distance = self.get_distance(map, provider, x - 1, y)
-                left_distance = self.get_distance(map, provider, x, y - 1)
-                if up_distance <= left_distance:
-                    node.best_direction = "UP"
-                    node.distance = up_distance + node.weight
-                else:
-                    node.best_direction = "LEFT"
-                    node.distance = left_distance + node.weight
-            node.visited = True
-        return node.distance
+        provider_node.best_direction = "UNKOWN"
+
+        while not q.empty():
+            current_x, current_y = q.get()
+            current_node = map.node_matrix[current_x][current_y]
+            for (neighbor_x, neighbor_y), direction in map.get_neighbor_list(current_x, current_y):
+                # 遍历邻居，不考虑代价
+                neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
+                if not neighbor_node.visited:
+                    q.put((neighbor_x, neighbor_y))
+                    neighbor_node.visited = True
+                    neighbor_node.distance = current_node.distance + 1
+                    neighbor_node.best_direction = direction
+    
+    # 刷新所有的Consumer结点
+    def refresh_consumer(self, map, consumer_vector):
+        reverse_direction = {
+            "DOWN": "UP",
+            "LEFT": "RIGHT",
+            "UP": "DOWN",
+            "RIGHT": "LEFT",
+        }
+        for consumer in consumer_vector:
+            consumer_node = map.node_matrix[consumer.x][consumer.y]
+            consumer_node.visited = True
+            # 搜索其邻居找到遍历次数最浅的
+            neighbor_list = map.get_neighbor_list(consumer.x, consumer.y)
+            min_distance_neighbor_node = map.node_matrix[neighbor_list[0][0][0]][neighbor_list[0][0][1]]
+            min_distance_neighbor_direction =  neighbor_list[0][1]
+            consumer_node.distance =  min_distance_neighbor_node.distance + 1
+            for (neighbor_x, neighbor_y), direction in neighbor_list[1:]:
+                neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
+                if neighbor_node.distance < min_distance_neighbor_node.distance:
+                    min_distance_neighbor_node = neighbor_node
+                    min_distance_neighbor_direction =  direction
+            consumer_node.distance =  min_distance_neighbor_node.distance + 1
+            consumer_node.best_direction = reverse_direction[min_distance_neighbor_direction] # 这里以consumer为中心，需要反向
+            print(consumer.id, consumer_node.distance)
 
     # 获得所有所有Consumer到Provier的最短路径
-    # 预期输出
-    # =======================================
-    # 1 60
-    # 2 40
-    # 3 20
     def get_all_trajectory(self, map, provider, consumer_vector):
         print("=======================================")
-        for i in range(len(consumer_vector)):
-            consumer = consumer_vector[i]
-            distance = self.get_distance(map, provider, consumer.x, consumer.y)
-            print(consumer.id, distance)
+        self.bfs(map, provider)
+        self.refresh_consumer(map, consumer_vector)
+            
 
     # 递归回溯，找父结点构建轨迹
     def backwad_trajectory(self, map, provider, x, y):
@@ -297,7 +228,7 @@ def main(conf_file=False):
         consumer_vector.append(consumer)
         map.node_matrix[consumer.x][consumer.y].node_type = "CONSUMER"
         map.node_matrix[consumer.x][consumer.y].type_id = i+1
-    controller = Controller(provider, map)
+    controller = Controller(map, provider, consumer_vector)
 
     # 核心部分，路径计算与保存
     controller.get_all_trajectory(map, provider, consumer_vector)
@@ -329,5 +260,3 @@ if __name__ == "__main__":
     # 输入部分
     # main()
     main(conf_file="main7_map_input.txt")
-
-        

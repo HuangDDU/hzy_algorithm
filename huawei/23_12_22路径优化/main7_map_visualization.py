@@ -41,7 +41,7 @@ def visualization(map, provider, consumer_vector, transmitter_vector):
                 dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector)
         else:
             # 叶子节点即遇到了Consumer
-            consumer = consumer_vector[node.type_id]
+            consumer = consumer_vector[node.type_id-1]
             last.target_vector.append([1, consumer.id, consumer.code_format])
 
 

@@ -271,10 +271,15 @@ public:
       }else if(node.child_xy_list.size()==1){
         int child_x = node.child_xy_list[0][0], child_y = node.child_xy_list[0][1];
         if(
-          ((node.best_direction==UP)&&(node.x-child_x==-1)&&(node.x-child_y==0))||
-          ((node.best_direction==RIGHT)&&(node.x-child_x==0)&&(node.x-child_y==1))||
-          ((node.best_direction==DOWN)&&(node.x-child_x==1)&&(node.x-child_y==0))||
-          ((node.best_direction==LEFT)&&(node.x-child_x==0)&&(node.x-child_y==-1))
+          // NOTE: 这怎么能跑的？node.y写错了呢，等会重新提交看看效果
+          // ((node.best_direction==UP)&&(node.x-child_x==-1)&&(node.x-child_y==0))||
+          // ((node.best_direction==RIGHT)&&(node.x-child_x==0)&&(node.x-child_y==1))||
+          // ((node.best_direction==DOWN)&&(node.x-child_x==1)&&(node.x-child_y==0))||
+          // ((node.best_direction==LEFT)&&(node.x-child_x==0)&&(node.x-child_y==-1))
+          ((node.best_direction==UP)&&(node.x-child_x==-1)&&(node.y-child_y==0))||
+          ((node.best_direction==RIGHT)&&(node.x-child_x==0)&&(node.y-child_y==1))||
+          ((node.best_direction==DOWN)&&(node.x-child_x==1)&&(node.y-child_y==0))||
+          ((node.best_direction==LEFT)&&(node.x-child_x==0)&&(node.y-child_y==-1))
         ){
           // 没有拐弯
           dfs(map, child_x, child_y, last, consumer_vector, transmitter_vector);
