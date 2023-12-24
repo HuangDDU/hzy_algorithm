@@ -62,7 +62,7 @@ class Controller():
         for consumer in consumer_vector:
             consumer_node = map.node_matrix[consumer.x][consumer.y]
             consumer_node.visited = True
-            # 搜索其邻居找到遍历次数最浅的
+            # 搜索其邻居找到遍历层数最浅的
             neighbor_list = map.get_neighbor_list(consumer.x, consumer.y)
             min_distance_neighbor_node = map.node_matrix[neighbor_list[0][0][0]][neighbor_list[0][0][1]]
             min_distance_neighbor_direction =  neighbor_list[0][1]
@@ -71,7 +71,7 @@ class Controller():
                 neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
                 if neighbor_node.distance < min_distance_neighbor_node.distance:
                     min_distance_neighbor_node = neighbor_node
-                    min_distance_neighbor_direction =  direction
+                    min_distance_neighbor_direction = direction
             consumer_node.distance =  min_distance_neighbor_node.distance + 1
             consumer_node.best_direction = reverse_direction[min_distance_neighbor_direction] # 这里以consumer为中心，需要反向
             print(consumer.id, consumer_node.distance)
