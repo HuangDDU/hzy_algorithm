@@ -1,6 +1,8 @@
-#include <algorithm>
 #include <iostream>
+#include <queue>
 #include <vector>
+#include <unordered_map>
+#include <algorithm>
 using namespace std;
 
 class ProviderOrTranmitter{
@@ -45,7 +47,7 @@ public:
 
 
 // 每个单元格就是一个结点
-enum direction { UP, RIGHT, DOWN, LEFT, UNKOWN}; // 动态规划的方向 上， 右， 下， 左， 未知
+enum direction { UP, RIGHT, DOWN, LEFT, UNKNOWN}; // 动态规划的方向 上， 右， 下， 左， 未知
 enum type { PROVIDER, CONSUMER, TRANSMITTER, EMPTY}; // 结点类型, Provider, Consumer, Transmitter, EMPTY
 class Node {
 public:
@@ -63,7 +65,7 @@ public:
     this->y = y;
     this->weight = weight;
     this->node_type = EMPTY;
-    this->best_direction = UNKOWN;
+    this->best_direction = UNKNOWN;
     this->distance = -1;
     this->visited = false;
   }
@@ -75,6 +77,7 @@ class Map {
 public:
   int N;
   vector<vector<Node>> node_matrix;
+  
   Map(vector<vector<int>> G_matrix) {
     this->N = G_matrix.size();
     for (int i = 0; i < this->N; i++) {
@@ -85,147 +88,124 @@ public:
       node_matrix.push_back(tmp_v);
     }
   }
+
+  // 所有的Consumer都当作障碍，这里面的遍历顺序时上右下左
+  unordered_map<direction, vector<int>> get_neighbor_map(int x, int y){
+    unordered_map<direction, vector<int>> m;
+    if((x>0)&&(!(node_matrix[x-1][y].node_type==CONSUMER))){
+      m[DOWN] = {x-1, y};
+    }
+    if((y<this->N-1)&&(!(node_matrix[x][y+1].node_type==CONSUMER))){
+      m[LEFT] = {x, y+1};
+    }
+    if((x<this->N-1)&&(!(node_matrix[x+1][y].node_type==CONSUMER))){
+      m[UP] = {x+1, y};
+    }
+    if((y>0)&&(!(node_matrix[x][y-1].node_type==CONSUMER))){
+      m[RIGHT] = {x, y-1};
+    }
+    return m;
+  }
 };
 
 
 // 核心控制类
 class Controller {
 public:
-  Controller(Provider &provider, Map &map) {
-    // 地图上provider所在位置distance设置为0
-    Node &provider_node = map.node_matrix[provider.x][provider.y];
+  Controller(Provider &provider, Map &node_map) {
+  }
+
+  // BFS整张图，所有的Customer当作障碍
+  void bfs(Map& node_map, Provider provider){
+    queue<vector<int>> q;
+    q.push({provider.x, provider.y});
+    Node& provider_node = node_map.node_matrix[provider.x][provider.y];
     provider_node.visited = true;
     provider_node.distance = 0;
-    // map.node_matrix[provider.x][provider.y].visited = true;
-    // map.node_matrix[provider.x][provider.y].distance = 0;
-    // provider所在的十字区域distance设置
-    for (int i = provider.x - 1; i >= 0; i--) {
-      // 所在列向上
-      map.node_matrix[i][provider.y].visited = true;
-      map.node_matrix[i][provider.y].best_direction = DOWN;
-      map.node_matrix[i][provider.y].distance =
-          map.node_matrix[i + 1][provider.y].distance +
-          map.node_matrix[i][provider.y].weight;
-    }
-    for (int i = provider.x + 1; i < map.N; i++) {
-      // 所在列向下
-      map.node_matrix[i][provider.y].visited = true;
-      map.node_matrix[i][provider.y].best_direction = UP;
-      map.node_matrix[i][provider.y].distance =
-          map.node_matrix[i - 1][provider.y].distance +
-          map.node_matrix[i][provider.y].weight;
-    }
-    for (int i = provider.y - 1; i >= 0; i--) {
-      // 所在行向左
-      map.node_matrix[provider.x][i].visited = true;
-      map.node_matrix[provider.x][i].best_direction = RIGHT;
-      map.node_matrix[provider.x][i].distance =
-          map.node_matrix[provider.x][i + 1].distance +
-          map.node_matrix[provider.x][i].weight;
-    }
-    for (int i = provider.y + 1; i < map.N; i++) {
-      // 所在行向右
-      map.node_matrix[provider.x][i].visited = true;
-      map.node_matrix[provider.x][i].best_direction = LEFT;
-      map.node_matrix[provider.x][i].distance =
-          map.node_matrix[provider.x][i - 1].distance +
-          map.node_matrix[provider.x][i].weight;
+    provider_node.best_direction = UNKNOWN;
+
+    while(!q.empty()){
+      vector<int> item = q.front();
+      q.pop();
+      int current_x=item[0], current_y=item[1];
+      Node& current_node = node_map.node_matrix[current_x][current_y];
+      for(auto& p : node_map.get_neighbor_map(current_x, current_y)){
+        // 遍历邻居，不考虑代价
+        int neighbor_x=p.second[0], neighbor_y=p.second[1];
+        Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
+        if(!neighbor_node.visited){
+          q.push({neighbor_x, neighbor_y});
+          neighbor_node.visited = true;
+          neighbor_node.distance = current_node.distance + 1;
+          neighbor_node.best_direction = p.first;
+        }
+      }
     }
   }
 
-  // 递归计算距离
-  // TODO: 路径上可能有些结点是Consumer，不能穿透
-  int get_distance(Map &map, Provider &provider, int x, int y) {
-    //
-    Node &node = map.node_matrix[x][y];
-    if (node.visited) {
-      // 直接访问
-      return node.distance;
-    } else {
-      // 根据坐标确定动态规划的方向
-      if ((x < provider.x) && (y < provider.y)) {
-        // 当前结点在provider的左上角
-        int down_distance = get_distance(map, provider, x + 1, y);
-        int right_distance = get_distance(map, provider, x, y + 1);
-        if (down_distance <= right_distance) {
-          node.best_direction = DOWN;
-          node.distance = down_distance + node.weight;
-        } else {
-          node.best_direction = RIGHT;
-          node.distance = right_distance + node.weight;
-        }
-      } else if ((x > provider.x) && (y < provider.y)) {
-        // 当前结点在provider的左下角
-        int up_distance = get_distance(map, provider, x - 1, y);
-        int right_distance = get_distance(map, provider, x, y + 1);
-        if (up_distance <= right_distance) {
-          node.best_direction = UP;
-          node.distance = up_distance + node.weight;
-        } else {
-          node.best_direction = RIGHT;
-          node.distance = right_distance + node.weight;
-        }
-      } else if ((x < provider.x) && (y > provider.y)) {
-        // 当前结点在provider的右上角
-        int down_distance = get_distance(map, provider, x + 1, y);
-        int left_distance = get_distance(map, provider, x, y - 1);
-        if (down_distance <= left_distance) {
-          node.best_direction = DOWN;
-          node.distance = down_distance + node.weight;
-        } else {
-          node.best_direction = LEFT;
-          node.distance = left_distance + node.weight;
-        }
-      } else {
-        // 当前结点在provider的右下角
-        int up_distance = get_distance(map, provider, x - 1, y);
-        int left_distance = get_distance(map, provider, x, y - 1);
-        if (up_distance <= left_distance) {
-          node.best_direction = UP;
-          node.distance = up_distance + node.weight;
-        } else {
-          node.best_direction = LEFT;
-          node.distance = left_distance + node.weight;
+  // 刷新所有的Consumer结点
+  void refresh_consumer(Map& node_map, vector<Consumer> consumer_vector){
+    unordered_map<direction, direction> reverse_direction_map = {
+      {DOWN, UP},
+      {LEFT, RIGHT},
+      {UP, DOWN},
+      {RIGHT, LEFT}
+    };
+    for(Consumer consumer : consumer_vector){
+      Node& consumer_node = node_map.node_matrix[consumer.x][consumer.y];
+      consumer_node.visited = true;
+      // 搜索其邻居找到遍历层数最浅的
+      unordered_map<direction, vector<int>> neighbor_map= node_map.get_neighbor_map(consumer.x, consumer.y);
+      auto first_it = neighbor_map.begin();
+      int x=first_it->second[0], y=first_it->second[1];
+      Node min_distance_neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
+      direction min_distance_neighbor_direction = first_it->first;
+      auto it = neighbor_map.begin();
+      it++;
+      for(; it!=neighbor_map.end(); it++){
+        int x=it->second[0], y=it->second[1];
+        Node neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
+        if(neighbor_node.distance < min_distance_neighbor_node.distance){
+          min_distance_neighbor_node = neighbor_node;
+          min_distance_neighbor_direction = it->first;
         }
       }
-      node.visited = true;
+      consumer_node.distance =  min_distance_neighbor_node.distance + 1;
+      consumer_node.best_direction = reverse_direction_map[min_distance_neighbor_direction]; // 这里以consumer为中心，需要反向
+      // cout << consumer.id << " " << consumer_node.distance << endl;
+      }
     }
-    return node.distance;
-  }
 
   // 获得所有所有Consumer到Provier的最短路径
   // 预期输出
   // =======================================
-  // 1 60
-  // 2 40
-  // 3 20
-  void get_all_trajectory(Map &map, Provider &provider, vector<Consumer> consumer_vector) {
+  // 1 5
+  // 2 3
+  // 3 1
+  void get_all_trajectory(Map &node_map, Provider &provider, vector<Consumer> consumer_vector) {
     // cout << "=======================================" << endl;
-    for (int i = 0; i < consumer_vector.size(); i++) {
-      Consumer consumer = consumer_vector[i];
-      int distance = get_distance(map, provider, consumer.x, consumer.y);
-      // cout << consumer.id << " " << distance << endl;
-    }
+    bfs(node_map, provider);
+    refresh_consumer(node_map, consumer_vector);
   }
 
   // 递归回溯，找父结点构建轨迹
-  void backwad_trajectory(Map &map, Provider &provider, int x, int y) {
+  void backwad_trajectory(Map &node_map, Provider &provider, int x, int y) {
     if (((x == provider.x) && (y == provider.y)) ||
-        (map.node_matrix[x][y].child_xy_list.size() > 0)) {
+        (node_map.node_matrix[x][y].child_xy_list.size() > 0)) {
       // 回溯到provider或已经回溯过了，结束停止
       return;
     } else {
       // 构建邻居并继续回溯
-      Node &node = map.node_matrix[x][y];
-      // Node &father_node = map.node_matrix[x][y]; // 必须要赋初值先就这样吧
+      Node &node = node_map.node_matrix[x][y];
+      // Node &father_node = node_map.node_matrix[x][y]; // 必须要赋初值先就这样吧
       // if (node.best_direction == UP) {
-      //   &father_node = map.node_matrix[x - 1][y];
+      //   &father_node = node_map.node_matrix[x - 1][y];
       // } else if (node.best_direction == RIGHT) {
-      //   &father_node = map.node_matrix[x][y + 1];
+      //   &father_node = node_map.node_matrix[x][y + 1];
       // } else if (node.best_direction == DOWN) {
-      //   &father_node = map.node_matrix[x + 1][y];
+      //   &father_node = node_map.node_matrix[x + 1][y];
       // } else {
-      //   &father_node = map.node_matrix[x][y - 1];
+      //   &father_node = node_map.node_matrix[x][y - 1];
       // }
       // 需要这样引用传参
       int father_x, father_y;
@@ -238,34 +218,36 @@ public:
       } else {
         father_x = x, father_y = y-1;
       }
-      Node& father_node = map.node_matrix[father_x][father_y];
-      backwad_trajectory(map, provider, father_node.x, father_node.y);
+      Node& father_node = node_map.node_matrix[father_x][father_y];
+      backwad_trajectory(node_map, provider, father_node.x, father_node.y);
       father_node.child_xy_list.push_back({x, y});
     }
   }
 
   // 从所有Consumer作为叶子结点回溯到根节点
-  void backward_all_trajectory(Map &map, Provider &provider, vector<Consumer> consumer_vector) {
+  void backward_all_trajectory(Map &node_map, Provider &provider, vector<Consumer> consumer_vector) {
     for (int i = 0; i < consumer_vector.size(); i++) {
       Consumer consumer = consumer_vector[i];
-      backwad_trajectory(map, provider, consumer.x, consumer.y);
+      backwad_trajectory(node_map, provider, consumer.x, consumer.y);
     }
   }
 
   // 递归从特定坐标开始DFS
   // TODO: DFS中的数据格式可能还是有点问题
-  void dfs(Map &map, int x, int y, ProviderOrTranmitter &last, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
-      Node& node = map.node_matrix[x][y];
+  void dfs(Map &node_map, int x, int y, ProviderOrTranmitter &last, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
+      Node& node = node_map.node_matrix[x][y];
       if(node.child_xy_list.size()>=2){
         // 分支点必然拐弯
         Transmitter transmitter = Transmitter(transmitter_vector.size()+1, node.x, node.y);
+        node.node_type = TRANSMITTER;
+        node.type_id = transmitter.id;
         last.target_vector.push_back({0, transmitter.id, 0}); // 暂时transmitter之间的传输都是0格式的
         transmitter_vector.push_back(transmitter); // vector不支持引用类型的对象，是深拷贝。暂时先占个位置
         // 遍历所有孩子
         for(int k=0; k<node.child_xy_list.size(); k++){
           vector<int> child_xy = node.child_xy_list[k];
           int child_x = child_xy[0], child_y = child_xy[1];
-          dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
+          dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
         }
         transmitter_vector[transmitter.id-1] = transmitter; // NOTE: 要放在后面，修改之后重新赋值
       }else if(node.child_xy_list.size()==1){
@@ -282,32 +264,34 @@ public:
           ((node.best_direction==LEFT)&&(node.x-child_x==0)&&(node.y-child_y==-1))
         ){
           // 没有拐弯
-          dfs(map, child_x, child_y, last, consumer_vector, transmitter_vector);
+          dfs(node_map, child_x, child_y, last, consumer_vector, transmitter_vector);
         }else{
           // 拐弯了
           Transmitter transmitter = Transmitter(transmitter_vector.size()+1, node.x, node.y);
+          node.node_type = TRANSMITTER;
+          node.type_id = transmitter.id;
           last.target_vector.push_back({0, transmitter.id, 0}); // 暂时transmitter之间的传输都是0格式的
           transmitter_vector.push_back(transmitter); // vector不支持引用类型的对象，是深拷贝。暂时先占个位置
-          dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
+          dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
           transmitter_vector[transmitter.id-1] = transmitter; // NOTE: 要放在后面，修改之后重新赋值
         }
       }else{
         // 叶子节点即遇到了Consumer
-        Consumer consumer = consumer_vector[node.type_id];
+        Consumer consumer = consumer_vector[node.type_id-1];
         last.target_vector.push_back({1, consumer.id, consumer.code_format}); // 最后进行消息格式的转换
       }
   }
 
   // 从Provider开始DFS
-  void dfs_tree(Map &map, Provider &provider, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
+  void dfs_tree(Map &node_map, Provider &provider, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
     // 从Provider作为根节点开始深度搜索
-    // dfs(map, child_x, child_y, provider, consumer_vector, transmitter_vector);
+    // dfs(node_map, child_x, child_y, provider, consumer_vector, transmitter_vector);
     // 为了避免在provider处构造Transmitter，在Provider的所有子结点开始搜索
-    Node provider_node = map.node_matrix[provider.x][provider.y];
+    Node provider_node = node_map.node_matrix[provider.x][provider.y];
     for(int k=0; k<provider_node.child_xy_list.size(); k++){
       vector<int> child_xy = provider_node.child_xy_list[k];
       int child_x = child_xy[0], child_y = child_xy[1];
-      dfs(map, child_x, child_y, provider, consumer_vector, transmitter_vector);
+      dfs(node_map, child_x, child_y, provider, consumer_vector, transmitter_vector);
     }
   }
 };
@@ -327,12 +311,11 @@ public:
 // 20 0
 
 // 当前方案输出
-// 4
-// 2 3 2 0 1 0 1 3 0
-// 2 2 2 0 2 0 0 4 0
-// 1 2 1 0 3 0
-// 1 0 1 1 1 0
-// 3 2 1 1 2 0
+// 3
+// 2 3 1 0 1 0
+// 2 2 2 0 2 0 0 3 0
+// 0 2 1 1 1 0
+// 2 1 1 1 2 0
 
 int main() {
   // 输入部分
@@ -363,26 +346,26 @@ int main() {
   // cout << "F_matrix OK" << endl;
 
   // 对象构造
-  Map map = Map(G_matrix);                           // 地图map对象
+  Map node_map = Map(G_matrix);                           // 地图map对象
   Provider provider = Provider(I, J);     // 单个Provider对象
-  map.node_matrix[I][J].node_type = PROVIDER;
+  node_map.node_matrix[I][J].node_type = PROVIDER;
   vector<Consumer> consumer_vector;       // Consumer列表
   vector<Transmitter> transmitter_vector; // Transmitter列表
   for (int i = 0; i < M; i++) {
     Consumer consumer = Consumer(i + 1, C_vector[i][0], C_vector[i][1], C_vector[i][2]);
     consumer_vector.push_back(consumer);
-    map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
-    map.node_matrix[consumer.x][consumer.y].type_id = i;
+    node_map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
+    node_map.node_matrix[consumer.x][consumer.y].type_id = i+1;
   }
-  Controller controller = Controller(provider, map); // 控制类，作为核心用作计算
+  Controller controller = Controller(provider, node_map); // 控制类，作为核心用作计算
 
   // TODO: 核心部分，路径计算与保存
   // 动态规划计算轨迹
-  controller.get_all_trajectory(map, provider, consumer_vector);
+  controller.get_all_trajectory(node_map, provider, consumer_vector);
   // 轨迹回溯， 轨迹合并，构建树结构
-  controller.backward_all_trajectory(map, provider, consumer_vector);
+  controller.backward_all_trajectory(node_map, provider, consumer_vector);
   // 树结构上DFS，并在拐弯处设置Tranmitter，输入输出数据设置，只在Consumer之前的最后一个Tranmitter设置数据转化格式
-  controller.dfs_tree(map, provider, consumer_vector, transmitter_vector);
+  controller.dfs_tree(node_map, provider, consumer_vector, transmitter_vector);
 
   // cout << "=======================================" << endl;
   // 输出部分

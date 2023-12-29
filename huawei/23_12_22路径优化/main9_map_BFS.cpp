@@ -158,13 +158,13 @@ public:
       unordered_map<direction, vector<int>> neighbor_map= node_map.get_neighbor_map(consumer.x, consumer.y);
       auto first_it = neighbor_map.begin();
       int x=first_it->second[0], y=first_it->second[1];
-      Node& min_distance_neighbor_node = node_map.node_matrix[x][y];
+      Node min_distance_neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
       direction min_distance_neighbor_direction = first_it->first;
       auto it = neighbor_map.begin();
       it++;
       for(; it!=neighbor_map.end(); it++){
         int x=it->second[0], y=it->second[1];
-        Node& neighbor_node = node_map.node_matrix[x][y];
+        Node neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
         if(neighbor_node.distance < min_distance_neighbor_node.distance){
           min_distance_neighbor_node = neighbor_node;
           min_distance_neighbor_direction = it->first;
@@ -343,53 +343,53 @@ int main() {
       cin >> F_matrix[i][j];
     }
   }
-  cout << "F_matrix OK" << endl;
+  // cout << "F_matrix OK" << endl;
 
-  // // 对象构造
-  // Map node_map = Map(G_matrix);                           // 地图map对象
-  // Provider provider = Provider(I, J);     // 单个Provider对象
-  // node_map.node_matrix[I][J].node_type = PROVIDER;
-  // vector<Consumer> consumer_vector;       // Consumer列表
-  // vector<Transmitter> transmitter_vector; // Transmitter列表
-  // for (int i = 0; i < M; i++) {
-  //   Consumer consumer = Consumer(i + 1, C_vector[i][0], C_vector[i][1], C_vector[i][2]);
-  //   consumer_vector.push_back(consumer);
-  //   node_map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
-  //   node_map.node_matrix[consumer.x][consumer.y].type_id = i+1;
-  // }
-  // Controller controller = Controller(provider, node_map); // 控制类，作为核心用作计算
+  // 对象构造
+  Map node_map = Map(G_matrix);                           // 地图map对象
+  Provider provider = Provider(I, J);     // 单个Provider对象
+  node_map.node_matrix[I][J].node_type = PROVIDER;
+  vector<Consumer> consumer_vector;       // Consumer列表
+  vector<Transmitter> transmitter_vector; // Transmitter列表
+  for (int i = 0; i < M; i++) {
+    Consumer consumer = Consumer(i + 1, C_vector[i][0], C_vector[i][1], C_vector[i][2]);
+    consumer_vector.push_back(consumer);
+    node_map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
+    node_map.node_matrix[consumer.x][consumer.y].type_id = i+1;
+  }
+  Controller controller = Controller(provider, node_map); // 控制类，作为核心用作计算
 
-  // // TODO: 核心部分，路径计算与保存
-  // // 动态规划计算轨迹
-  // controller.get_all_trajectory(node_map, provider, consumer_vector);
-  // // 轨迹回溯， 轨迹合并，构建树结构
-  // controller.backward_all_trajectory(node_map, provider, consumer_vector);
-  // // 树结构上DFS，并在拐弯处设置Tranmitter，输入输出数据设置，只在Consumer之前的最后一个Tranmitter设置数据转化格式
-  // controller.dfs_tree(node_map, provider, consumer_vector, transmitter_vector);
+  // TODO: 核心部分，路径计算与保存
+  // 动态规划计算轨迹
+  controller.get_all_trajectory(node_map, provider, consumer_vector);
+  // 轨迹回溯， 轨迹合并，构建树结构
+  controller.backward_all_trajectory(node_map, provider, consumer_vector);
+  // 树结构上DFS，并在拐弯处设置Tranmitter，输入输出数据设置，只在Consumer之前的最后一个Tranmitter设置数据转化格式
+  controller.dfs_tree(node_map, provider, consumer_vector, transmitter_vector);
 
-  // // cout << "=======================================" << endl;
-  // // 输出部分
-  // cout << transmitter_vector.size() << endl;
-  // // Provider输出
-  // vector<vector<int>> target_vector = provider.target_vector;
-  // cout << provider.x << " " << provider.y << " " << target_vector.size();
-  // for (int j = 0; j < target_vector.size(); j++) {
-  //   cout << " " << target_vector[j][0] << " " << target_vector[j][1] << " "
-  //         << target_vector[j][2];
-  // }
-  // cout << endl;
-  // // Transmitter输出
-  // for (int i = 0; i < transmitter_vector.size(); i++) {
-  //   Transmitter transmitter = transmitter_vector[i];
-  //   vector<vector<int>> target_vector =
-  //       transmitter.target_vector; // 目标列表，每隔元素为一个三元组
-  //   // i, j , d
-  //   cout << transmitter.x << " " << transmitter.y << " " << target_vector.size();
-  //   // 目标列表三元组输出
-  //   for (int j = 0; j < target_vector.size(); j++) {
-  //     cout << " " << target_vector[j][0] << " " << target_vector[j][1] << " " << target_vector[j][2];
-  //   }
-  //   cout << endl;
-  // }
+  // cout << "=======================================" << endl;
+  // 输出部分
+  cout << transmitter_vector.size() << endl;
+  // Provider输出
+  vector<vector<int>> target_vector = provider.target_vector;
+  cout << provider.x << " " << provider.y << " " << target_vector.size();
+  for (int j = 0; j < target_vector.size(); j++) {
+    cout << " " << target_vector[j][0] << " " << target_vector[j][1] << " "
+          << target_vector[j][2];
+  }
+  cout << endl;
+  // Transmitter输出
+  for (int i = 0; i < transmitter_vector.size(); i++) {
+    Transmitter transmitter = transmitter_vector[i];
+    vector<vector<int>> target_vector =
+        transmitter.target_vector; // 目标列表，每隔元素为一个三元组
+    // i, j , d
+    cout << transmitter.x << " " << transmitter.y << " " << target_vector.size();
+    // 目标列表三元组输出
+    for (int j = 0; j < target_vector.size(); j++) {
+      cout << " " << target_vector[j][0] << " " << target_vector[j][1] << " " << target_vector[j][2];
+    }
+    cout << endl;
+  }
   return 0;
 }
