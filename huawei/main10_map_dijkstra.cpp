@@ -143,6 +143,53 @@ public:
     }
   }
 
+    
+  // 小顶堆，优先级队列的元素为坐标，权值为到原点距离
+  struct Coordinate {
+    int x;
+    int y;
+    int weight;
+
+    Coordinate(int x, int y, int w) : x(x), y(y), weight(w) {}
+
+    // 定义比较函数
+    bool operator>(const Coordinate& other) const {
+        return weight > other.weight;
+    }
+  };
+  
+  // Dijsktra
+  void dijkstra(Map& node_map, Provider provider){
+    priority_queue<Coordinate, vector<Coordinate>, greater<Coordinate>> q;
+    q.push(Coordinate(provider.x, provider.y, 0));
+    Node& provider_node = node_map.node_matrix[provider.x][provider.y];
+    provider_node.visited = true;
+    provider_node.distance = 0;
+    provider_node.best_direction = UNKNOWN;
+
+    while(!q.empty()){
+      Coordinate item = q.top();
+      q.pop();
+      int current_x=item.x, current_y=item.y;
+      Node& current_node = node_map.node_matrix[current_x][current_y];
+      for(auto& p : node_map.get_neighbor_map(current_x, current_y)){
+        // 遍历邻居，不考虑代价
+        int neighbor_x=p.second[0], neighbor_y=p.second[1];
+        Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
+        int new_cost = current_node.distance + neighbor_node.weight; // 以当前结点为中介，该邻居新的距离
+        if((!neighbor_node.visited) || (new_cost < current_node.distance)){
+          // 更新从当前结点其到的源点距离
+          q.push(Coordinate(neighbor_x, neighbor_y, new_cost));
+          // 更新结点
+          neighbor_node.visited = true;
+          // neighbor_node.distance = current_node.distance + 1;
+          neighbor_node.distance = current_node.distance + neighbor_node.weight;
+          neighbor_node.best_direction = p.first;
+        }
+      }
+    }
+  }
+
   // 刷新所有的Consumer结点
   void refresh_consumer(Map& node_map, vector<Consumer> consumer_vector){
     unordered_map<direction, direction> reverse_direction_map = {
@@ -170,7 +217,8 @@ public:
           min_distance_neighbor_direction = it->first;
         }
       }
-      consumer_node.distance =  min_distance_neighbor_node.distance + 1;
+      // consumer_node.distance =  min_distance_neighbor_node.distance + 1; // 适配BFS
+      consumer_node.distance =  min_distance_neighbor_node.distance + consumer_node.weight; // 适配Dijkstra
       consumer_node.best_direction = reverse_direction_map[min_distance_neighbor_direction]; // 这里以consumer为中心，需要反向
       // cout << consumer.id << " " << consumer_node.distance << endl;
       }
@@ -184,7 +232,8 @@ public:
   // 3 1
   void get_all_trajectory(Map &node_map, Provider &provider, vector<Consumer> consumer_vector) {
     // cout << "=======================================" << endl;
-    bfs(node_map, provider);
+    // bfs(node_map, provider);
+    dijkstra(node_map, provider);
     refresh_consumer(node_map, consumer_vector);
   }
 
