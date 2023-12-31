@@ -61,7 +61,7 @@ class Controller():
                     new_cost = current_node.distance + neighbor_node.weight # 以当前结点为中介，该邻居新的距离
                     if (neighbor_node.distance==-1) or new_cost < neighbor_node.distance:
                         # 更新从当前结点其到的源点距离
-                        q.put((new_cost, (neighbor_x, neighbor_y)))
+                        q.put((new_cost, (neighbor_x, neighbor_y))) # TODO: 这里的小缺陷，对于new_cost更新会往堆中加入元素
                         # 更新结点
                         # neighbor_node.visited = True # 这里认为是visited的话，会影响early stop
                         neighbor_node.distance = new_cost

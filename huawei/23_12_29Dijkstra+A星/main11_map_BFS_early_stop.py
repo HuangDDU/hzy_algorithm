@@ -37,7 +37,7 @@ class Controller():
 
     # BFS整张图，实现了Early stop
     def bfs_early_stop(self, map, provider, consumer_vector):
-        n_customer = len(consumer_vector)
+        n_consumer = len(consumer_vector)
         # 队列初始化
         q = Queue()
         q.put((provider.x, provider.y))
@@ -50,10 +50,10 @@ class Controller():
             current_x, current_y = q.get()
             current_node = map.node_matrix[current_x][current_y]
             if current_node.node_type == "CONSUMER":
-                # 邻居及时停止]
+                # 邻居及时停止
                 if not current_node.visited:
-                    n_customer -= 1
-                    if n_customer == 0:
+                    n_consumer -= 1
+                    if n_consumer == 0:
                         return 
             else:
                 for (neighbor_x, neighbor_y), direction in map.get_neighbor_list(current_x, current_y):
