@@ -49,7 +49,6 @@ class Controller():
         while not q.empty():
             current_x, current_y = q.get()
             current_node = map.node_matrix[current_x][current_y]
-            current_node.visited = True
             if current_node.node_type == "CONSUMER":
                 # 邻居及时停止]
                 if not current_node.visited:
@@ -62,8 +61,10 @@ class Controller():
                     neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
                     if not neighbor_node.visited:
                         q.put((neighbor_x, neighbor_y))
+                        # neighbor_node.visited = True # 这里认为是visited的话，会影响early stop
                         neighbor_node.distance = current_node.distance + 1
                         neighbor_node.best_direction = direction
+            current_node.visited = True
 
     # 获得所有所有Consumer到Provier的最短路径
     def get_all_trajectory(self, map, provider, consumer_vector):
