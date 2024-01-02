@@ -125,7 +125,8 @@ public:
 class Controller {
 public:
   int manhattan_scale; // 曼哈顿缩放系数
-  Controller(Provider &provider, Map &node_map) {
+  int per_transmitter_cost; // 新建一个Transmitter的代价
+  Controller(Provider &provider, Map &node_map, int P) {
     int N = node_map.N;
     int weight_sum = 0;
     for(int i=0; i<N; i++){
@@ -134,6 +135,7 @@ public:
       }
     }
     this->manhattan_scale = (int) (weight_sum/(N*N));
+    this->per_transmitter_cost = 3*P;
   }
 
   int heuristic(int x,int y, vector<Consumer> consumer_vector){
@@ -188,6 +190,10 @@ public:
           int neighbor_x=neighbor.x, neighbor_y=neighbor.y;
           Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
           int new_cost = current_node.distance + neighbor_node.weight; // 以当前结点为中介，该邻居新的距离
+          if(!(neighbor.d == current_node.best_direction)){
+            // 添加转弯代价
+            new_cost += this->per_transmitter_cost;
+          }
           if((neighbor_node.distance==-1)||(new_cost < neighbor_node.distance)){
             int priority = new_cost + this->heuristic(neighbor_x, neighbor_y, consumer_vector); // A*改进
             q.push(Coordinate(neighbor_x, neighbor_y, priority));
@@ -384,7 +390,7 @@ int main() {
     node_map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
     node_map.node_matrix[consumer.x][consumer.y].type_id = i+1;
   }
-  Controller controller = Controller(provider, node_map); // 控制类，作为核心用作计算
+  Controller controller = Controller(provider, node_map, P); // 控制类，作为核心用作计算
 
   // TODO: 核心部分，路径计算与保存
   // 动态规划计算轨迹
