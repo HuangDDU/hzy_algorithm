@@ -33,7 +33,18 @@ class Map():
 
 class Controller():
     def __init__(self, map, provider, consumer_vector) -> None:
-        pass
+        N = map.N
+        self.manhattan_scale = int(sum([map.node_matrix[i][j].weight for j in range(N) for i in range(N)])/(N*N)) #曼哈顿距离 缩放系数
+        print("manhattan_scale", self.manhattan_scale)
+
+    def heuristic(self, x, y, consumer_vector):
+        # 到达所有结点最近的曼哈顿距离,
+        # TODO: 直接曼哈顿距离用到路径权值有点问题，需要手动乘以缩放系数
+        manhattan_distance_list = []
+        for consumer in consumer_vector:
+            manhattan_distance =  abs(x-consumer.x) + abs(y-consumer.y)
+            manhattan_distance_list.append(manhattan_distance)
+        return min(manhattan_distance_list)*self.manhattan_scale
 
     # Dijkstra
     def dijkstra_early_stop(self, map, provider, consumer_vector):
@@ -61,9 +72,8 @@ class Controller():
                     new_cost = current_node.distance + neighbor_node.weight # 以当前结点为中介，该邻居新的距离
                     if (neighbor_node.distance==-1) or new_cost < neighbor_node.distance:
                         # 更新从当前结点其到的源点距离
-                        q.put((new_cost, (neighbor_x, neighbor_y))) # TODO: 这里的小缺陷，对于new_cost更新会往堆中加入元素
-                        # 更新结点
-                        # neighbor_node.visited = True # 这里认为是visited的话，会影响early stop
+                        priority = new_cost + self.heuristic(neighbor_x, neighbor_y, consumer_vector) # A*改进
+                        q.put((priority, (neighbor_x, neighbor_y)))
                         neighbor_node.distance = new_cost
                         neighbor_node.best_direction = direction
             current_node.visited = True 

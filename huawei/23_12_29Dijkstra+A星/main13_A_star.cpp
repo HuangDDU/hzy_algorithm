@@ -71,6 +71,18 @@ public:
   }
 };
 
+// 邻居的坐标和所在位置
+class Neighbor{
+  public:
+    int x;
+    int y;
+    direction d; // 该邻居在中心结点的位置
+    Neighbor(int x, int y, direction d){
+      this->x = x;
+      this->y = y;
+      this->d = d;
+    }
+};
 
 // 地图类
 class Map {
@@ -89,22 +101,22 @@ public:
     }
   }
 
-  // 所有的Consumer都当作障碍，这里面的遍历顺序时上右下左
-  unordered_map<direction, vector<int>> get_neighbor_map(int x, int y){
-    unordered_map<direction, vector<int>> m;
-    if((x>0)&&(!(node_matrix[x-1][y].node_type==CONSUMER))){
-      m[DOWN] = {x-1, y};
+  // 这里面的遍历顺序时上右下左，Consumer为中心时没有邻居，应该不能调用这个方法
+  vector<Neighbor> get_neighbor_vector(int x, int y){
+    vector<Neighbor> v;
+    if(x>0){
+      v.push_back(Neighbor(x-1, y, DOWN));
     }
-    if((y<this->N-1)&&(!(node_matrix[x][y+1].node_type==CONSUMER))){
-      m[LEFT] = {x, y+1};
+    if(y<this->N-1){
+      v.push_back(Neighbor(x, y+1, LEFT));
     }
-    if((x<this->N-1)&&(!(node_matrix[x+1][y].node_type==CONSUMER))){
-      m[UP] = {x+1, y};
+    if(x<this->N-1){
+      v.push_back(Neighbor(x+1, y, UP));
     }
-    if((y>0)&&(!(node_matrix[x][y-1].node_type==CONSUMER))){
-      m[RIGHT] = {x, y-1};
+    if(y>0){
+      v.push_back(Neighbor(x, y-1, RIGHT));
     }
-    return m;
+    return v;
   }
 };
 
@@ -112,38 +124,29 @@ public:
 // 核心控制类
 class Controller {
 public:
+  int manhattan_scale; // 曼哈顿缩放系数
   Controller(Provider &provider, Map &node_map) {
-  }
-
-  // BFS整张图，所有的Customer当作障碍
-  void bfs(Map& node_map, Provider provider){
-    queue<vector<int>> q;
-    q.push({provider.x, provider.y});
-    Node& provider_node = node_map.node_matrix[provider.x][provider.y];
-    provider_node.visited = true;
-    provider_node.distance = 0;
-    provider_node.best_direction = UNKNOWN;
-
-    while(!q.empty()){
-      vector<int> item = q.front();
-      q.pop();
-      int current_x=item[0], current_y=item[1];
-      Node& current_node = node_map.node_matrix[current_x][current_y];
-      for(auto& p : node_map.get_neighbor_map(current_x, current_y)){
-        // 遍历邻居，不考虑代价
-        int neighbor_x=p.second[0], neighbor_y=p.second[1];
-        Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
-        if(!neighbor_node.visited){
-          q.push({neighbor_x, neighbor_y});
-          neighbor_node.visited = true;
-          neighbor_node.distance = current_node.distance + 1;
-          neighbor_node.best_direction = p.first;
-        }
+    int N = node_map.N;
+    int weight_sum = 0;
+    for(int i=0; i<N; i++){
+      for(int j=0; j<N; j++){
+        weight_sum += node_map.node_matrix[i][j].weight;
       }
     }
+    this->manhattan_scale = (int) (weight_sum/(N*N));
   }
 
-    
+  int heuristic(int x,int y, vector<Consumer> consumer_vector){
+    // 到达所有结点最近的曼哈顿距离,
+    // TODO: 直接曼哈顿距离用到路径权值有点问题，需要手动乘以缩放系数
+    vector<int> manhattan_distance_list;
+    for(Consumer consumer: consumer_vector){
+      int manhattan_distance =  abs(x-consumer.x) + abs(y-consumer.y);
+      manhattan_distance_list.push_back(manhattan_distance);
+    }
+    return *(min_element(manhattan_distance_list.begin(), manhattan_distance_list.end()))*this->manhattan_scale;
+  }
+
   // 小顶堆，优先级队列的元素为坐标，权值为到原点距离
   struct Coordinate {
     int x;
@@ -159,7 +162,8 @@ public:
   };
   
   // Dijsktra
-  void dijkstra(Map& node_map, Provider provider){
+  void dijkstra_early_stop(Map& node_map, Provider provider, vector<Consumer> consumer_vector){
+    int n_consumer = consumer_vector.size();
     priority_queue<Coordinate, vector<Coordinate>, greater<Coordinate>> q;
     q.push(Coordinate(provider.x, provider.y, 0));
     Node& provider_node = node_map.node_matrix[provider.x][provider.y];
@@ -172,69 +176,43 @@ public:
       q.pop();
       int current_x=item.x, current_y=item.y;
       Node& current_node = node_map.node_matrix[current_x][current_y];
-      for(auto& p : node_map.get_neighbor_map(current_x, current_y)){
-        // 遍历邻居，不考虑代价
-        int neighbor_x=p.second[0], neighbor_y=p.second[1];
-        Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
-        int new_cost = current_node.distance + neighbor_node.weight; // 以当前结点为中介，该邻居新的距离
-        if((!neighbor_node.visited) || (new_cost < current_node.distance)){
-          // 更新从当前结点其到的源点距离
-          q.push(Coordinate(neighbor_x, neighbor_y, new_cost));
-          // 更新结点
-          neighbor_node.visited = true;
-          // neighbor_node.distance = current_node.distance + 1;
-          neighbor_node.distance = current_node.distance + neighbor_node.weight;
-          neighbor_node.best_direction = p.first;
+      if (current_node.node_type == CONSUMER){
+        // 邻居及时停止
+        if(!current_node.visited){
+          n_consumer --;
+          if(n_consumer == 0)return;
+        }
+      }else{
+        vector<Neighbor> neighbor_vector = node_map.get_neighbor_vector(current_x, current_y);
+        for(Neighbor neighbor: neighbor_vector){
+          int neighbor_x=neighbor.x, neighbor_y=neighbor.y;
+          Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
+          int new_cost = current_node.distance + neighbor_node.weight; // 以当前结点为中介，该邻居新的距离
+          if((neighbor_node.distance==-1)||(new_cost < neighbor_node.distance)){
+            int priority = new_cost + this->heuristic(neighbor_x, neighbor_y, consumer_vector); // A*改进
+            q.push(Coordinate(neighbor_x, neighbor_y, priority));
+            neighbor_node.distance = new_cost;
+            neighbor_node.best_direction = neighbor.d;
+          }
         }
       }
+      current_node.visited = true;
     }
   }
-
-  // 刷新所有的Consumer结点
-  void refresh_consumer(Map& node_map, vector<Consumer> consumer_vector){
-    unordered_map<direction, direction> reverse_direction_map = {
-      {DOWN, UP},
-      {LEFT, RIGHT},
-      {UP, DOWN},
-      {RIGHT, LEFT}
-    };
-    for(Consumer consumer : consumer_vector){
-      Node& consumer_node = node_map.node_matrix[consumer.x][consumer.y];
-      consumer_node.visited = true;
-      // 搜索其邻居找到遍历层数最浅的
-      unordered_map<direction, vector<int>> neighbor_map= node_map.get_neighbor_map(consumer.x, consumer.y);
-      auto first_it = neighbor_map.begin();
-      int x=first_it->second[0], y=first_it->second[1];
-      Node min_distance_neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
-      direction min_distance_neighbor_direction = first_it->first;
-      auto it = neighbor_map.begin();
-      it++;
-      for(; it!=neighbor_map.end(); it++){
-        int x=it->second[0], y=it->second[1];
-        Node neighbor_node = node_map.node_matrix[x][y]; // 这里Node不使用引用
-        if(neighbor_node.distance < min_distance_neighbor_node.distance){
-          min_distance_neighbor_node = neighbor_node;
-          min_distance_neighbor_direction = it->first;
-        }
-      }
-      // consumer_node.distance =  min_distance_neighbor_node.distance + 1; // 适配BFS
-      consumer_node.distance =  min_distance_neighbor_node.distance + consumer_node.weight; // 适配Dijkstra
-      consumer_node.best_direction = reverse_direction_map[min_distance_neighbor_direction]; // 这里以consumer为中心，需要反向
-      // cout << consumer.id << " " << consumer_node.distance << endl;
-      }
-    }
 
   // 获得所有所有Consumer到Provier的最短路径
   // 预期输出
   // =======================================
-  // 1 5
-  // 2 3
-  // 3 1
+  // 1 60
+  // 2 40
+  // 3 20
   void get_all_trajectory(Map &node_map, Provider &provider, vector<Consumer> consumer_vector) {
     // cout << "=======================================" << endl;
-    // bfs(node_map, provider);
-    dijkstra(node_map, provider);
-    refresh_consumer(node_map, consumer_vector);
+    dijkstra_early_stop(node_map, provider, consumer_vector);
+    for(Consumer consumer: consumer_vector){
+      Node consumer_node = node_map.node_matrix[consumer.x][consumer.y];
+      cout << consumer.id << " " << consumer_node.distance << endl;
+    }
   }
 
   // 递归回溯，找父结点构建轨迹
