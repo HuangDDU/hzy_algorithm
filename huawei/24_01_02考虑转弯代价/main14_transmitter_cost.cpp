@@ -126,7 +126,7 @@ class Controller {
 public:
   int manhattan_scale; // 曼哈顿缩放系数
   int per_transmitter_cost; // 新建一个Transmitter的代价
-  Controller(Provider &provider, Map &node_map, int P) {
+  Controller(Provider &provider, Map &node_map, vector<Consumer> consumer_vector, int P) {
     int N = node_map.N;
     int weight_sum = 0;
     for(int i=0; i<N; i++){
@@ -135,7 +135,7 @@ public:
       }
     }
     this->manhattan_scale = (int) (weight_sum/(N*N));
-    this->per_transmitter_cost = 3*P;
+    this->per_transmitter_cost = 3*P*consumer_vector.size();
   }
 
   int heuristic(int x,int y, vector<Consumer> consumer_vector){
@@ -390,7 +390,7 @@ int main() {
     node_map.node_matrix[consumer.x][consumer.y].node_type = CONSUMER;
     node_map.node_matrix[consumer.x][consumer.y].type_id = i+1;
   }
-  Controller controller = Controller(provider, node_map, P); // 控制类，作为核心用作计算
+  Controller controller = Controller(provider, node_map, consumer_vector, P); // 控制类，作为核心用作计算
 
   // TODO: 核心部分，路径计算与保存
   // 动态规划计算轨迹

@@ -65,14 +65,15 @@ class Controller():
                 if not current_node.visited:
                     n_customer -= 1
                     if n_customer == 0:
+                        current_node.visited = True
                         return 
             else:
                 # 更新邻居
                 for (neighbor_x, neighbor_y), direction in map.get_neighbor_list(current_x, current_y):
                     neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
                     new_cost = current_node.distance + neighbor_node.weight # 以当前结点为中介，该邻居新的距离
-                    if not (direction == current_node.best_direction):
-                        #  添加转弯代价
+                    if (not current_node.node_type == "PROVIDER") and (not (direction == current_node.best_direction)):
+                        #  添加转弯代价，从PROVIDER出发肯定不用添加转弯代价
                         new_cost += self.per_transmitter_cost
                     if (neighbor_node.distance==-1) or new_cost < neighbor_node.distance:
                         # 更新从当前结点其到的源点距离
@@ -98,7 +99,10 @@ class Controller():
             # 构建邻居并继续回溯
             node = map.node_matrix[x][y]
             father_x, father_y = 0, 0
-            if node.best_direction == "UP":
+            if node.best_direction == "UNKOWN":
+                # 没有路径，直接返回
+                return
+            elif node.best_direction == "UP":
                 father_x = x-1
                 father_y = y
             elif node.best_direction == "RIGHT":
@@ -107,7 +111,7 @@ class Controller():
             elif node.best_direction == "DOWN":
                 father_x = x+1
                 father_y = y
-            else:
+            elif node.best_direction == "LEFT":
                 father_x = x
                 father_y = y-1
             father_node = map.node_matrix[father_x][father_y]
@@ -297,4 +301,5 @@ def main(conf_file=False):
 if __name__ == "__main__":
     # 输入部分
     # main()
-    main(conf_file="../23_12_22路径优化/main7_map_input.txt")
+    # main(conf_file="../23_12_22路径优化/main7_map_input.txt")
+    main(conf_file="main15_other_map1.txt")
