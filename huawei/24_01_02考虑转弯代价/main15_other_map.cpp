@@ -190,7 +190,7 @@ public:
           int neighbor_x=neighbor.x, neighbor_y=neighbor.y;
           Node& neighbor_node = node_map.node_matrix[neighbor_x][neighbor_y];
           int new_cost = current_node.distance + neighbor_node.weight; // 以当前结点为中介，该邻居新的距离
-          if(!(neighbor.d == current_node.best_direction)){
+          if(!(current_node.node_type==PROVIDER)&&(!(neighbor.d == current_node.best_direction))){
             // 添加转弯代价
             new_cost += this->per_transmitter_cost;
           }
@@ -229,26 +229,19 @@ public:
       return;
     } else {
       // 构建邻居并继续回溯
-      Node &node = node_map.node_matrix[x][y];
-      // Node &father_node = node_map.node_matrix[x][y]; // 必须要赋初值先就这样吧
-      // if (node.best_direction == UP) {
-      //   &father_node = node_map.node_matrix[x - 1][y];
-      // } else if (node.best_direction == RIGHT) {
-      //   &father_node = node_map.node_matrix[x][y + 1];
-      // } else if (node.best_direction == DOWN) {
-      //   &father_node = node_map.node_matrix[x + 1][y];
-      // } else {
-      //   &father_node = node_map.node_matrix[x][y - 1];
-      // }
-      // 需要这样引用传参
+      Node &node = node_map.node_matrix[x][y]; // 需要这样引用传参
       int father_x, father_y;
-      if (node.best_direction == UP) {
+      if (node.best_direction == UNKNOWN){
+        // 没有路径，直接返回
+        return;
+      }
+      else if(node.best_direction == UP) {
         father_x = x-1, father_y = y;
       } else if (node.best_direction == RIGHT) {
         father_x = x, father_y = y+1;
       } else if (node.best_direction == DOWN) {
         father_x = x+1, father_y = y;
-      } else {
+      } else if (node.best_direction == LEFT){
         father_x = x, father_y = y-1;
       }
       Node& father_node = node_map.node_matrix[father_x][father_y];
