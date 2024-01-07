@@ -187,9 +187,9 @@ class Controller():
             child_xy = provider_node.child_xy_list[i]
             child_x, child_y = child_xy[0], child_xy[1]
             self.dfs(map, child_x, child_y, provider, consumer_vector, transmitter_vector)
-        # provider消息格式都设置为0
-        for i in range(len(provider.target_vector)):
-            provider.target_vector[i][2] = 0
+        # # provider消息格式都设置为0
+        # for i in range(len(provider.target_vector)):
+        #     provider.target_vector[i][2] = 0
 
     # 递归计算time_score
     def calc_tree_time_score(self, map, x, y, transmitter_vector, F_matrix):

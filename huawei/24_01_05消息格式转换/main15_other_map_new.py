@@ -137,24 +137,15 @@ class Controller():
         if len(node.child_xy_list)>=2:
             # 分支点必然拐弯
             transmitter = Transmitter(len(transmitter_vector)+1, node.x, node.y)
-            transmitter_vector.append(transmitter)
             node.node_type = "TRANSMITTER"
             node.type_id = transmitter.id
-            format_dict = {} # 该分支点上的消息格式字典
+            last.target_vector.append([0, transmitter.id, 0])
+            transmitter_vector.append(transmitter)
             # 遍历所有孩子
             for i in range(len(node.child_xy_list)):
                 child_xy = node.child_xy_list[i]
                 child_x, child_y = child_xy[0], child_xy[1]
-                tmp_format_dict = self.dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector)
-                # 合并到现有格式字典上
-                for k, v in tmp_format_dict.items():
-                    if k in format_dict:
-                        format_dict[k] += v
-                    else:
-                        format_dict[k] = v
-            transmitter.format_dict = format_dict
-            transmitter.need_format = max(format_dict, key=format_dict.get) # 出现格式次数的最多的消息格式作为该Tranmitter的需求消息格式
-            last.target_vector.append([0, transmitter.id, transmitter.need_format]) 
+                self.dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector)
         elif len(node.child_xy_list)==1:
             child_x, child_y = node.child_xy_list[0][0], node.child_xy_list[0][1]
             if (node.best_direction=="UP" and node.x-child_x==-1 and node.y-child_y==0) \
@@ -162,23 +153,19 @@ class Controller():
                 or (node.best_direction=="DOWN" and node.x-child_x==1 and node.y-child_y==0) \
                 or (node.best_direction=="LEFT" and node.x-child_x==0 and node.y-child_y==-1):
                 # 没有拐弯
-                format_dict = self.dfs(map, child_x, child_y, last, consumer_vector, transmitter_vector)
+                self.dfs(map, child_x, child_y, last, consumer_vector, transmitter_vector)
             else:
                 # 拐弯了
                 transmitter = Transmitter(len(transmitter_vector)+1, node.x, node.y)
-                transmitter_vector.append(transmitter)
                 node.node_type = "TRANSMITTER"
                 node.type_id = transmitter.id
-                format_dict = self.dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector)
-                transmitter.format_dict = format_dict
-                transmitter.need_format = max(format_dict, key=format_dict.get)
-                last.target_vector.append([0, transmitter.id, transmitter.need_format]) 
+                last.target_vector.append([0, transmitter.id, 0])
+                transmitter_vector.append(transmitter)
+                self.dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector)
         else:
             # 叶子节点即遇到了Consumer
             consumer = consumer_vector[node.type_id-1]
-            format_dict = {consumer.code_format : 1}
             last.target_vector.append([1, consumer.id, consumer.code_format])
-        return format_dict
 
     # 从Provider开始DFS
     def dfs_tree(self, map, provider, consumer_vector, transmitter_vector):
@@ -187,9 +174,7 @@ class Controller():
             child_xy = provider_node.child_xy_list[i]
             child_x, child_y = child_xy[0], child_xy[1]
             self.dfs(map, child_x, child_y, provider, consumer_vector, transmitter_vector)
-        # provider消息格式都设置为0
-        for i in range(len(provider.target_vector)):
-            provider.target_vector[i][2] = 0
+    
 
     # 递归计算time_score
     def calc_tree_time_score(self, map, x, y, transmitter_vector, F_matrix):
@@ -340,4 +325,4 @@ if __name__ == "__main__":
     # 输入部分
     # main()
     # main(conf_file="../23_12_22路径优化/main7_map_input.txt")
-    main(conf_file="main16_format_transform.txt")
+    main(conf_file="main15_other_map1.txt")

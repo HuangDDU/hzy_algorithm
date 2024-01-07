@@ -3,9 +3,8 @@ import networkx as nx
 
 
 def visualization(map, provider, consumer_vector, transmitter_vector):
-    edge_list = [] # 其中元素为[[(source_x, source_y), (target_x, target_y)], format]
-
     def dfs(map, x, y, provider, consumer_vector, transmitter_vector):
+        edge_list = []
         node = map.node_matrix[x][y]
         if node.node_type == "CONSUMER":
             return
@@ -16,23 +15,25 @@ def visualization(map, provider, consumer_vector, transmitter_vector):
                 target_vector = provider.target_vector
             else:
                 target_vector = transmitter_vector[node.type_id-1].target_vector
-            print(target_vector)
             for target_item in target_vector:
                 if target_item[0] == 0:
                     # Transmitter
                     target_obj = transmitter_vector[target_item[1]-1]
-                    dfs(map, target_obj.x, target_obj.y, provider, consumer_vector, transmitter_vector)
+                    tmp_edge_list = dfs(map, target_obj.x, target_obj.y, provider, consumer_vector, transmitter_vector)
+                    edge_list += tmp_edge_list
                 else:
                     # Consumer
                     target_obj = consumer_vector[target_item[1]-1]
                 target = (target_obj.x, target_obj.y)
                 edge_list.append([(source, target), target_item[2]])
+        return edge_list
 
     # 从Provider开始DFS
     def dfs_format(map, provider, consumer_vector, transmitter_vector):
-        dfs(map, provider.x, provider.y, provider, consumer_vector, transmitter_vector)
+        edge_list = dfs(map, provider.x, provider.y, provider, consumer_vector, transmitter_vector)
+        return edge_list
     
-    dfs_format(map, provider, consumer_vector, transmitter_vector)
+    edge_list = dfs_format(map, provider, consumer_vector, transmitter_vector)
     edge_list
 
 
@@ -44,15 +45,31 @@ def visualization(map, provider, consumer_vector, transmitter_vector):
             node = map.node_matrix[source[0]][source[1]]
             tmp_dict = {}
             tmp_dict["node_type"] = node.node_type
-            tmp_dict["label"] = f"{node.node_type[0]}{node.type_id if not node.type_id==-1 else ''}"
+            if node.node_type == "PROVIDER":
+                label = "P"
+            elif node.node_type == "TRANSMITTER":
+                transmitter = transmitter_vector[node.type_id-1]
+                label = f"T{transmitter.id}({transmitter.need_format})"
+            elif node.node_type == "CONSUMER":
+                consumer = consumer_vector[node.type_id-1]
+                label = f"C{consumer.id}({consumer.code_format})"
+            tmp_dict["label"] = label
             node_dict[source] = tmp_dict
         if not target in node_dict:
             node = map.node_matrix[target[0]][target[1]]
             tmp_dict = {}
             tmp_dict["node_type"] = node.node_type
-            tmp_dict["label"] = f"{node.node_type[0]}{node.type_id}"
+            if node.node_type == "PROVIDER":
+                label = "P"
+            elif node.node_type == "TRANSMITTER":
+                transmitter = transmitter_vector[node.type_id-1]
+                label = f"T{transmitter.id}({transmitter.need_format})"
+            elif node.node_type == "CONSUMER":
+                consumer = consumer_vector[node.type_id-1]
+                label = f"C{consumer.id}({consumer.code_format})"
+            tmp_dict["label"] = label
             node_dict[target] = tmp_dict
-    node_dict
+        node_dict
 
 
     import matplotlib.pyplot as plt
