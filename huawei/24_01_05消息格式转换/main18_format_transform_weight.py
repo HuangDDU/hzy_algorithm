@@ -135,6 +135,7 @@ class Controller():
     # 递归从特定坐标开始DFS
     def dfs(self, map, x, y, last, consumer_vector, transmitter_vector, F_matrix):
         node = map.node_matrix[x][y]
+        format_dict = {} # 该分支点子树的消息格式字典
         need_format = 0
         if len(node.child_xy_list)>=2:
             # 分支点必然拐弯
@@ -142,7 +143,6 @@ class Controller():
             transmitter_vector.append(transmitter)
             node.node_type = "TRANSMITTER"
             node.type_id = transmitter.id
-            format_dict = {} # 该分支点子树的消息格式字典
             local_format_dict = {} # 该分支点局部的消息格式字典
             # 遍历所有孩子
             for i in range(len(node.child_xy_list)):
@@ -176,9 +176,9 @@ class Controller():
                     # 找到了代价更小的输入格式
                     best_need_format = tmp_need_format
                     best_need_format_cost = tmp_need_format_cost
-            transmitter.need_format = best_need_format
-            need_format = transmitter.need_format # 用作后续递归返回结果
-            last.target_vector.append([0, transmitter.id, transmitter.need_format])
+            need_format = best_need_format # 用作后续递归返回结果
+            transmitter.need_format = need_format
+            last.target_vector.append([0, transmitter.id, need_format])
         elif len(node.child_xy_list)==1:
             child_x, child_y = node.child_xy_list[0][0], node.child_xy_list[0][1]
             if (node.best_direction=="UP" and node.x-child_x==-1 and node.y-child_y==0) \
@@ -195,16 +195,15 @@ class Controller():
                 node.type_id = transmitter.id
                 need_format, format_dict = self.dfs(map, child_x, child_y, transmitter, consumer_vector, transmitter_vector, F_matrix)
                 transmitter.format_dict = format_dict
-                transmitter.need_format = max(format_dict, key=format_dict.get)
-                last.target_vector.append([0, transmitter.id, transmitter.need_format])
-                need_format = transmitter.need_format # 和递归得到的need_format一致
+                transmitter.need_format = need_format
                 transmitter.local_format_dict[need_format] = 1
+                last.target_vector.append([0, transmitter.id, need_format])
         else:
             # 叶子节点即遇到了Consumer
             consumer = consumer_vector[node.type_id-1]
             format_dict = {consumer.code_format : 1}
-            last.target_vector.append([1, consumer.id, consumer.code_format])
             need_format = consumer.code_format
+            last.target_vector.append([1, consumer.id, consumer.code_format])
         return need_format, format_dict
 
     # 从Provider开始DFS

@@ -26,6 +26,7 @@ public:
   int id;
   int need_format;
   unordered_map<int, int> format_dict;
+  unordered_map<int, int> local_format_dict;
   Transmitter(int id, int x, int y) {
     this->id = id;
     this->x = x;
@@ -262,35 +263,63 @@ public:
   }
 
   // 递归从特定坐标开始DFS
-  unordered_map<int, int> dfs(Map &node_map, int x, int y, ProviderOrTranmitter &last, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
-      unordered_map<int, int> format_dict;
+  pair<int, unordered_map<int, int>> dfs(Map &node_map, int x, int y, ProviderOrTranmitter &last, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector, vector<vector<int>> F_matrix){
       Node& node = node_map.node_matrix[x][y];
+      unordered_map<int, int> format_dict;
+      int need_format = 0;
       if(node.child_xy_list.size()>=2){
         // 分支点必然拐弯
         Transmitter transmitter = Transmitter(transmitter_vector.size()+1, node.x, node.y);
+        transmitter_vector.push_back(transmitter); // vector不支持引用类型的对象，是深拷贝。暂时先占个位置
         node.node_type = TRANSMITTER;
         node.type_id = transmitter.id;
-        transmitter_vector.push_back(transmitter); // vector不支持引用类型的对象，是深拷贝。暂时先占个位置
+        unordered_map<int, int> local_format_dict; //该分支点局部的消息格式字典
         // 遍历所有孩子
         for(int k=0; k<node.child_xy_list.size(); k++){
           vector<int> child_xy = node.child_xy_list[k];
           int child_x = child_xy[0], child_y = child_xy[1];
-          unordered_map<int, int> tmp_format_dict = dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
+          int need_format;
+          unordered_map<int, int> tmp_format_dict;
+          pair<int, unordered_map<int, int>> result_pair = dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector, F_matrix); // 用新的Transmitter作为消息转发
+          need_format = result_pair.first;
+          tmp_format_dict = result_pair.second;
+          local_format_dict[need_format] += 1;
           for(auto& pair :tmp_format_dict){
             format_dict[pair.first] += pair.second;
           }
         }
         transmitter.format_dict = format_dict;
-        // 出现格式次数的最多的消息格式作为该Tranmitter的需求消息格式
-        auto max_element = format_dict.begin();
-        for (auto it = format_dict.begin(); it != format_dict.end(); ++it) {
-            if (it->second > max_element->second) {
-                max_element = it;
-            }
+        transmitter.local_format_dict = local_format_dict;
+        // TODO: 替换掉完全由数量决定的输入格式的逻辑
+        // auto max_element = format_dict.begin();
+        // for (auto it = format_dict.begin(); it != format_dict.end(); ++it) {
+        //     if (it->second > max_element->second) {
+        //         max_element = it;
+        //     }
+        // }
+        // transmitter.need_format = max_element->first;
+        // TODO: 寻找代价最小的输入格式
+        vector<int> format_list;
+        for(auto& p: local_format_dict){
+          format_list.push_back(p.first);
         }
-        transmitter.need_format = max_element->first;
+        int best_need_format =  format_list[0];
+        int best_need_format_cost = -1;
+        for(int tmp_need_format: format_list){
+          int tmp_need_format_cost = 0;
+          for(auto& p: local_format_dict){
+            int k=p.first, v=p.second;
+            tmp_need_format_cost += F_matrix[tmp_need_format][k]*v;
+          }
+          if ((best_need_format_cost==-1)||((!(best_need_format_cost == -1))&&(tmp_need_format_cost < best_need_format_cost))){
+            best_need_format = tmp_need_format;
+            best_need_format_cost = tmp_need_format_cost;
+          }
+        }
+        need_format = best_need_format;
+        transmitter.need_format = need_format;
         transmitter_vector[transmitter.id-1] = transmitter;
-        last.target_vector.push_back({0, transmitter.id, transmitter.need_format});
+        last.target_vector.push_back({0, transmitter.id, need_format});
       }else if(node.child_xy_list.size()==1){
         int child_x = node.child_xy_list[0][0], child_y = node.child_xy_list[0][1];
         if(
@@ -300,37 +329,36 @@ public:
           ((node.best_direction==LEFT)&&(node.x-child_x==0)&&(node.y-child_y==-1))
         ){
           // 没有拐弯
-          format_dict = dfs(node_map, child_x, child_y, last, consumer_vector, transmitter_vector);
+          pair<int, unordered_map<int, int>> result_pair = dfs(node_map, child_x, child_y, last, consumer_vector, transmitter_vector, F_matrix);
+          need_format = result_pair.first;
+          format_dict = result_pair.second;
         }else{
           // 拐弯了
           Transmitter transmitter = Transmitter(transmitter_vector.size()+1, node.x, node.y);
           node.node_type = TRANSMITTER;
           node.type_id = transmitter.id;
           transmitter_vector.push_back(transmitter); // vector不支持引用类型的对象，是深拷贝。暂时先占个位置
-          format_dict = dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector); // 用新的Transmitter作为消息转发
+          pair<int, unordered_map<int, int>> result_pair = dfs(node_map, child_x, child_y, transmitter, consumer_vector, transmitter_vector, F_matrix); // 用新的Transmitter作为消息转发
+          need_format = result_pair.first;
+          format_dict = result_pair.second;
+          transmitter.format_dict = format_dict;
+          transmitter.need_format = need_format;
+          transmitter.local_format_dict[need_format] = 1;
           transmitter_vector[transmitter.id-1] = transmitter;
-          // 出现格式次数的最多的消息格式作为该Tranmitter的需求消息格式
-          auto max_element = format_dict.begin();
-          for (auto it = format_dict.begin(); it != format_dict.end(); ++it) {
-              if (it->second > max_element->second) {
-                  max_element = it;
-              }
-          }
-          transmitter.need_format = max_element->first;
-          transmitter_vector[transmitter.id-1] = transmitter;
-          last.target_vector.push_back({0, transmitter.id, transmitter.need_format});
+          last.target_vector.push_back({0, transmitter.id, need_format});
         }
       }else{
         // 叶子节点即遇到了Consumer
         Consumer consumer = consumer_vector[node.type_id-1];
         format_dict[consumer.code_format] = 1; 
+        need_format = consumer.code_format;
         last.target_vector.push_back({1, consumer.id, consumer.code_format}); // 最后进行消息格式的转换
       }
-      return format_dict;
+      return make_pair(need_format, format_dict);
   }
 
   // 从Provider开始DFS
-  void dfs_tree(Map &node_map, Provider &provider, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector){
+  void dfs_tree(Map &node_map, Provider &provider, vector<Consumer> consumer_vector, vector<Transmitter>& transmitter_vector, vector<vector<int>> F_matrix){
     // 从Provider作为根节点开始深度搜索
     // dfs(node_map, child_x, child_y, provider, consumer_vector, transmitter_vector);
     // 为了避免在provider处构造Transmitter，在Provider的所有子结点开始搜索
@@ -338,7 +366,7 @@ public:
     for(int k=0; k<provider_node.child_xy_list.size(); k++){
       vector<int> child_xy = provider_node.child_xy_list[k];
       int child_x = child_xy[0], child_y = child_xy[1];
-      dfs(node_map, child_x, child_y, provider, consumer_vector, transmitter_vector);
+      dfs(node_map, child_x, child_y, provider, consumer_vector, transmitter_vector, F_matrix);
     }
     // // provider消息格式都设置为0
     // for(int k=0; k<provider.target_vector.size(); k++){
@@ -416,7 +444,7 @@ int main() {
   // 轨迹回溯， 轨迹合并，构建树结构
   controller.backward_all_trajectory(node_map, provider, consumer_vector);
   // 树结构上DFS，并在拐弯处设置Tranmitter，输入输出数据设置，只在Consumer之前的最后一个Tranmitter设置数据转化格式
-  controller.dfs_tree(node_map, provider, consumer_vector, transmitter_vector);
+  controller.dfs_tree(node_map, provider, consumer_vector, transmitter_vector, F_matrix);
 
   // cout << "=======================================" << endl;
   // 输出部分
