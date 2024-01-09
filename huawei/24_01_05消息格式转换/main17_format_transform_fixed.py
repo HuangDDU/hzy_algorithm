@@ -69,7 +69,7 @@ class Controller():
             current_x, current_y = q.get()[1]
             current_node = map.node_matrix[current_x][current_y]
             if current_node.node_type == "CONSUMER":
-                # 邻居及时停止]
+                # 邻居及时停止
                 if not current_node.visited:
                     n_customer -= 1
                     if n_customer == 0:
