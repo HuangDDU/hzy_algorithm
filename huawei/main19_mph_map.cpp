@@ -275,7 +275,7 @@ public:
       }
 
       // 更新组播树
-      vector<int> new_V_list;
+      new_V_list = {};
       for(int j=0; j<path.size(); j++){
         G_list.push_back(path[j]);
         int target = path[j].second;

@@ -42,20 +42,7 @@ class Map():
 class Controller():
     def __init__(self, map, provider, consumer_vector, P) -> None:
         self.N = map.N
-        N = self.N
-        self.manhattan_scale = int(sum([map.node_matrix[i][j].weight for j in range(N) for i in range(N)])/(N*N)) #曼哈顿距离缩放系数
-        self.per_transmitter_cost = 3*P*len(consumer_vector)# 新建一个Transmitter的代价
-        print("manhattan_scale", self.manhattan_scale)
 
-    def heuristic(self, x, y, consumer_index_list):
-        # 到达所有结点最近的曼哈顿距离, 直接曼哈顿距离用到路径权值有点问题，需要手动乘以缩放系数
-        manhattan_distance_list = []
-        for consumer_index in consumer_index_list:
-            consumer_x, consumer_y = int(consumer_index/self.N), consumer_index%self.N
-            manhattan_distance =  abs(x-consumer_x) + abs(y-consumer_y)
-            manhattan_distance_list.append(manhattan_distance)
-        return min(manhattan_distance_list)*self.manhattan_scale
-    
     # 输出矩阵
     def show_map(self, N, distance_matrix, direction_matrix):
         for i in range(N):
@@ -131,13 +118,10 @@ class Controller():
                     neighbor_x, neighbor_y = int(neighbor_index/self.N), neighbor_index%self.N
                     neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
                     new_cost = distance_matrix[current_node.x][current_node.y] + neighbor_node.weight
-                    # 添加转弯代价
-                    if (not current_index == source) and (not (direction == direction_matrix[current_x][current_y])):
-                        #  添加转弯代价，从起点出发肯定不用添加转弯代价
-                        new_cost += self.per_transmitter_cost
+                    # TODO: 添加转弯代价
                     if (distance_matrix[neighbor_x][neighbor_y] == -1) or (new_cost < distance_matrix[neighbor_x][neighbor_y]):
                         # 更新从当前结点其到的源点距离
-                        priority = new_cost + self.heuristic(neighbor_x, neighbor_y, consumer_index_list) # A*改进
+                        priority = new_cost # TODO:A*改进
                         q.put((priority, neighbor_index))
                         distance_matrix[neighbor_x][neighbor_y] = new_cost
                         direction_matrix[neighbor_x][neighbor_y]= direction
@@ -455,5 +439,4 @@ def main(conf_file=False):
 if __name__ == "__main__":
     # 输入部分
     # main()
-    # main(conf_file="main19_mph_map.txt")
-    main(conf_file="../24_01_05消息格式转换/main16_format_transform3.txt")
+    main(conf_file="main19_mph_map.txt")
