@@ -104,6 +104,7 @@ class Controller():
         # 初始化
         distance_matrix = [[-1 for i in range(self.N)] for j in range(self.N)] # 距离矩阵
         direction_matrix = [["" for i in range(self.N)] for j in range(self.N)] # 方向矩阵用于回溯
+        direction_list_matrix = [[[] for i in range(self.N)] for j in range(self.N)] # 可能会有多个同等代价的候选前驱，后续需要选择代价最低的
         visited_matrix = [[False for i in range(self.N)] for j in range(self.N)] # 访问矩阵
         n_consumer = len(consumer_index_list) # 用作记录及时停止
 
@@ -132,15 +133,26 @@ class Controller():
                     neighbor_node = map.node_matrix[neighbor_x][neighbor_y]
                     new_cost = distance_matrix[current_node.x][current_node.y] + neighbor_node.weight
                     # 添加转弯代价
-                    if (not current_index == source) and (not (direction == direction_matrix[current_x][current_y])):
+                    # if (not current_index == source) and (not (direction == direction_matrix[current_x][current_y])):
+                    if (not current_index == source) :
                         #  添加转弯代价，从起点出发肯定不用添加转弯代价
-                        new_cost += self.per_transmitter_cost
-                    if (distance_matrix[neighbor_x][neighbor_y] == -1) or (new_cost < distance_matrix[neighbor_x][neighbor_y]):
+                        trun = True
+                        for d in direction_list_matrix[current_x][current_y]:
+                            if direction == d:
+                                # 有一个候选方向没有转弯，最好的路径
+                                trun = False
+                                direction_matrix[current_x][current_y] = d
+                                break
+                        if trun:
+                            new_cost += self.per_transmitter_cost
+                    if (distance_matrix[neighbor_x][neighbor_y] == -1) or (new_cost <= distance_matrix[neighbor_x][neighbor_y]):
+                        # 这里同等权重也要更新
                         # 更新从当前结点其到的源点距离
                         priority = new_cost + self.heuristic(neighbor_x, neighbor_y, consumer_index_list) # A*改进
                         q.put((priority, neighbor_index))
                         distance_matrix[neighbor_x][neighbor_y] = new_cost
-                        direction_matrix[neighbor_x][neighbor_y]= direction
+                        direction_matrix[neighbor_x][neighbor_y] = direction
+                        direction_list_matrix[neighbor_x][neighbor_y].append(direction) # 添加候选一个方向
             visited_matrix[current_x][current_y] = True
         # print(source, ":", int(source/self.N), source%self.N)
         # self.show_map(self.N, distance_matrix, direction_matrix)
@@ -456,4 +468,5 @@ if __name__ == "__main__":
     # 输入部分
     # main()
     # main(conf_file="main19_mph_map.txt")
-    main(conf_file="../24_01_05消息格式转换/main16_format_transform3.txt")
+    # main(conf_file="../24_01_05消息格式转换/main16_format_transform3.txt")
+    main(conf_file="main19_mph_map2.txt")
