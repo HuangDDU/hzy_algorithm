@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finance
+spec:
+  selector:
+    matchLabels:
+      app: finance
+  template:
+    metadata:
+      labels:
+        app: finance
+    spec:
+      containers:
+      - name: finance
+        image: rossning92/finance
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finance-np-service
+spec:
+  selector:
+    app: finance
+  ports:
+  - port: 5000
+    targetPort: 5000
+    nodePort: 30080
+    
