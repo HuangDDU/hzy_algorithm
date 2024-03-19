@@ -602,7 +602,7 @@ def Output():
     # TODO: 0号轮船等到最后才走压着帧数
     max_frame = 15000
     if id == max_frame - berth[0].transport_time:
-        print(f"go {berth[0]}.boat_id") # 有标记了，装上货物后开往虚拟点
+        print(f"go {berth[0].boat_id}") # 有标记了，装上货物后开往虚拟点
         logger.info(f"轮船出发")
     return
 

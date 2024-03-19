@@ -8,23 +8,17 @@ from queue import Queue, PriorityQueue
 import logging
 logger = logging.getLogger()
 # 文件保存
-file_handler = logging.FileHandler("main.log", "w", encoding="utf-8")
+file_handler = logging.FileHandler("main_new.log", "w", encoding="utf-8")
 logger.addHandler(file_handler)
-# 格式
-# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# file_handler.setFormatter(formatter)
 # 日志级别
 logger.setLevel(logging.DEBUG)
-
-# 调试断点
-import time
-# time.sleep(20)
 
 # 常量参数
 n = 200
 robot_num = 10
 berth_num = 10
 N = 210
+max_frame = 15000
 
 # 方向与坐标变化的映射关系
 STOP = -1
@@ -59,15 +53,16 @@ class Robot:
         self.mbx = mbx
         self.mby = mby
 
-        self.available = True
+        self.available = True # 0号泊位可达性
+        self.available_list = [ True for i in range(berth_num)] # 到各个泊位的可达性
+
         self.aim_type = "" # 目标为空""，货物"good", 泊位"berth", 碰撞后恢复空地"space"
         self.aim_type_raw = "" # 碰撞后用来保存当前目标类型
         self.aim_pos = (-1, -1) # 目标位置
         self.aim_pos_raw = (-1, -1) # 碰撞后用来保存当前目标
+        self.aim_berth_id = -1 # 如果目标是泊位，需要记住这个泊位id，方便往装载队列里添加
         self.direction_list = []
         self.direction = STOP
-        self.coclision_solved = False
-        self.coclision_higher = False
 
         self.pos_direction_dict ={}
 
@@ -96,7 +91,7 @@ class Robot:
         self.aim_type = self.aim_type_raw
         logger.debug("recover successsful!")
 
-robot = [Robot(i) for i in range(robot_num + 10)]
+robot = [Robot(i) for i in range(robot_num)]
 
 
 # 泊位
@@ -111,7 +106,7 @@ class Berth:
         self.good_queue = Queue() #  货物队列
         self.loaded_good_num = 0 #  已经往当前船上装载的货物数量
 
-berth = [Berth(i) for i in range(berth_num + 10)]
+berth = [Berth(i) for i in range(berth_num)]
 
 
 # 轮船
@@ -130,7 +125,6 @@ robot_id_count = 0
 class Node:
     def __init__(self, x, y, type):
         self.x, self.y = x, y
-        # self.type = "ocean" # 海洋land，陆地land，泊位berth，障碍barrier
         self.type = type # 海洋*，陆地.，泊位B，障碍#
         if self.type == 'A':
             self.type = '.'
@@ -139,10 +133,14 @@ class Node:
             robot[robot_id_count].y = y
             robot_id_count += 1
         self.type_raw = self.type # 原始类型，可能避障更改
+
         # 后续用于机器人寻路，只对陆地有效
         self.berth_visited_list = [False for _ in range(berth_num)] # 是否有到各个泊位的路径
         self.berth_best_direction_list = [RIGHT for _ in range(berth_num)] # 到该泊位路径的最短方向
+        self.berth_distance_list= [-1 for _ in range(berth_num)] # 到该泊位路径的长度
         self.berth_best_pos_direction_dict = [{} for _ in range(berth_num)] # 回溯得到的路径
+    
+        self.berth_id = -1 # 归属泊位号
 
 
 class Map:
@@ -169,8 +167,11 @@ class Map:
             neighbor_list.append([[x, y+1], LEFT])
         return neighbor_list
 
+    
     # 从固定泊位开始的bfs
-    def bfs_berth(self, berth_id, berth_x, berth_y):
+    def bfs_berth(self, berth):
+        berth_id = berth.id
+        berth_x, berth_y = berth.x, berth.y
         # 队列初始化
         q = Queue()
         # 对上下左右边上四周的16个点初始化，只对陆地点.设置
@@ -181,8 +182,9 @@ class Map:
                     q.put((node.x, node.y))
                     node.berth_visited_list[berth_id] = True
                     node.berth_best_direction_list[berth_id] = DOWN
+                    node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = DOWN
-                    logger.info(f"{node.x}, {node.y}, DOWN")
+                    # logger.info(f"{node.x}, {node.y}, DOWN")
         if berth_x+4 < n:
             for y in range(berth_y, berth_y+4):
                 node = self.node_matrix[berth_x+4][y]
@@ -190,8 +192,9 @@ class Map:
                     q.put((node.x, node.y, ))
                     node.berth_visited_list[berth_id] = True
                     node.berth_best_direction_list[berth_id] = UP
+                    node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = UP
-                    logger.info(f"{node.x}, {node.y}, UP")
+                    # logger.info(f"{node.x}, {node.y}, UP")
         if berth_y > 0:
             for x in range(berth_x, berth_x+4):
                 node = self.node_matrix[x][berth_y-1]
@@ -199,8 +202,9 @@ class Map:
                     q.put((node.x, node.y))
                     node.berth_visited_list[berth_id] = True
                     node.berth_best_direction_list[berth_id] = RIGHT
+                    node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = RIGHT
-                    logger.info(f"{node.x}, {node.y}, RIGHT")
+                    # logger.info(f"{node.x}, {node.y}, RIGHT")
         if berth_y+4 < n:
             for x in range(berth_x, berth_x+4):
                 node = self.node_matrix[x][berth_y+4]
@@ -208,8 +212,9 @@ class Map:
                     q.put((node.x, node.y))
                     node.berth_visited_list[berth_id] = True
                     node.berth_best_direction_list[berth_id] = LEFT
+                    node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = LEFT
-                    logger.info(f"{node.x}, {node.y}, LEFT")
+                    # logger.info(f"{node.x}, {node.y}, LEFT")
         
         # 深度优先遍历
         while not q.empty():
@@ -218,6 +223,7 @@ class Map:
             for (neighbor_x, neighbor_y), direction in self.get_neighbor_list(x, y):
                 neighbor_node = self.node_matrix[neighbor_x][neighbor_y]
                 if neighbor_node.type == '.' and neighbor_node.berth_visited_list[berth_id]==False:
+                    neighbor_node.berth_distance_list[berth_id] = node.berth_distance_list[berth_id] + 1
                     # 对没有访问过的陆地点设置
                     neighbor_node.berth_visited_list[berth_id] = True
                     neighbor_node.berth_best_direction_list[berth_id] = direction
@@ -367,12 +373,43 @@ def Init():
         berth[id].loading_speed = berth_list[4]
     global boat_capacity # 全局变量的声明
     boat_capacity = int(input())
-    # TODO: 计算所有陆地点到泊位的最短路径
+    # TODO: 计算所有陆地点到5个泊位的最短路径，划分归属的泊位
     m.init_map(ch)
-    logger.debug("bfs berth 0......")
-    m.bfs_berth(0, berth[0].x, berth[0].y)
-    logger.debug("bfs end......")
-    logger.debug("check robot available......")
+    # 所有BFS
+    for i in range(5):
+        logger.debug(f"bfs berth {i}......")
+        m.bfs_berth(berth[i])
+        logger.debug("bfs end......")
+        logger.debug("check robot availability......")
+        # 不可用的机器人标记
+        for j in range(10):
+            robot_j = robot[j]
+            node = m.node_matrix[robot_j.x][robot_j.y]
+            if node.berth_visited_list[i]==False:
+                robot_j.available_list[i] = False # 不可到达
+                logger.debug(f"robot({j}) to berth({i}) is unavailable")
+    # 划分各个地图结点归属的泊位
+    for i in range(n):
+        row = "" # 用于输出的行
+        for j in range(n):
+            node = m.node_matrix[i][j]
+            if node.type == '.':
+                distance_list = node.berth_distance_list
+                berth_id = -1
+                # 候选第一个不为-1的泊位ID
+                for k in range(5):
+                    if not distance_list[k] == -1:
+                        berth_id = k
+                        break
+                for k in range(berth_id, 5):
+                    if distance_list[k] < distance_list[berth_id]:
+                        berth_id = k
+                node.berth_id = berth_id
+                row += str(berth_id)
+            else:
+                row += node.type
+        logger.debug(row)
+
     # 不可用的机器人标记
     for i in range(10):
         robot_i = robot[i]
@@ -382,7 +419,7 @@ def Init():
             robot_i.available = False
             logger.debug(f"robot({i}) is unavailable")
     # OK确定
-    logger.debug(f"transport_time: {berth[0].transport_time}") # 泊位到虚拟点的时间
+    # logger.debug(f"transport_time: {berth[0].transport_time}") # 泊位到虚拟点的时间
     okk = input()
     print("OK")
     sys.stdout.flush()
@@ -414,9 +451,6 @@ flag = False # 第0个机器人把第0个货物运达第0个泊位的标识符
 # 单帧输出
 def Output():
     logger.debug(f"\n=====frame:{id}, money:{money}=====")
-    # if id==1:
-    #     # 初始：0号轮船到达0号泊位
-    #     print(f"ship 0 0")
 
     # 主动检测碰撞
     logger.debug("start robot conclision search")
@@ -523,8 +557,12 @@ def Output():
                     robot_i.aim_type = "berth"
                     # TODO: 获取原本BFS回溯的路径作为初始路径
                     node = m.node_matrix[robot_i.x][robot_i.y]
-                    robot_i.pos_direction_dict = node.berth_best_pos_direction_dict[0] # 初始按照BFS走
-                    robot_i.aim_pos = (berth[0].x, berth[0].y)
+                    # robot_i.pos_direction_dict = node.berth_best_pos_direction_dict[0] # 初始按照BFS走
+                    # robot_i.aim_pos = (berth[0].x, berth[0].y)
+                    aim_berth = berth[node.berth_id] # 选择当前目标berth
+                    robot_i.pos_direction_dict = node.berth_best_pos_direction_dict[aim_berth.id] # 
+                    robot_i.aim_pos = (aim_berth.x, aim_berth.y)
+                    robot_i.aim_berth_id =aim_berth.id
                     logger.debug(f"pos_direction_dict(bfs) : {robot_i.pos_direction_dict}")
             elif robot_i.aim_type == "berth":
                 # 带货了，移动到0号泊位
@@ -536,7 +574,7 @@ def Output():
                     print(f"pull {i}")
                     logger.debug(f"robot({i})货物pull成功")
                     robot_i.aim_type = ""
-                    berth[0].good_queue.put(0) # 随便放一个元素，只是占位置用的
+                    berth[robot_i.aim_berth_id].good_queue.put(0) # 随便放一个元素，只是占位置用的
                 else:
                     robot_i.update_direction()
                     direction = robot_i.direction
@@ -565,25 +603,32 @@ def Output():
         if boat_i.status == 1:
             if boat_i.pos == -1:
                 # 轮船到达虚拟点, 立即回到泊位
-                logger.debug(f"boat({i}) reach virtual node: plan to berth({0})")
-                print(f"ship {i} 0")
+                logger.debug(f"boat({i}) reach virtual node: plan to berth({i})")
+                print(f"ship {i} {i}")
             else:
                 # 轮船到达泊位
                 logger.debug(f"boat({i}) reached berth({boat_i.pos})")
                 berth[boat_i.pos].boat_id = i
         elif boat_i.status == 2:
-            logger.debug(f"boat({i}) is waiting for berth({0})")
+            logger.debug(f"boat({i}) is waiting for berth({i})")
         else:
             if boat_i.pos == -1:
                 logger.debug(f"boat({i}) is going to virtual node")
             else:
-                logger.debug(f"boat({i}) is going to berth({boat_i.pos})")
+                logger.debug(f"boat({i}) is going to berth({i})")
 
     # TODO: 所有泊位调度
     # for i in range(berth_num):
-    for i in range(1):
+    for i in range(5):
         berth_i = berth[i]
         if not berth_i.boat_id == -1:
+            if id >= max_frame - berth[i].transport_time - 10:
+                # 最后快结束的时候，留出10帧的时间离开
+                print(f"go {berth[i].boat_id}")
+                logger.debug(f"game will over, ship {i}")
+                berth_i.boat_id = -1
+                berth_i.loaded_good_num = 0
+                continue
             # 当前泊位有船则开始装货
             for j in range(berth_i.loading_speed):
                 if berth_i.good_queue.empty():
@@ -598,12 +643,7 @@ def Output():
                     berth_i.boat_id = -1
                     berth_i.loaded_good_num = 0
                     break
-
-    # TODO: 0号轮船等到最后才走压着帧数
-    max_frame = 15000
-    if id == max_frame - berth[0].transport_time:
-        print(f"go {berth[0].boat_id}") # 有标记了，装上货物后开往虚拟点
-        logger.info(f"轮船出发")
+    
     return
 
 if __name__ == "__main__":
