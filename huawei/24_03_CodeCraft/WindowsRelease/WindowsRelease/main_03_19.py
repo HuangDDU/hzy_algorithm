@@ -33,12 +33,14 @@ LEFT = 1
 UP = 2
 DOWN = 3
 direction2pos_change ={
+    STOP : (0, 0),
     RIGHT : (0, 1),
     LEFT : (0, -1),
     UP : (-1, 0),
     DOWN : (1, 0),
 }
 pos_change2dirction = {
+    (0, 0) : STOP,
     (0, 1) : RIGHT,
     (0, -1) : LEFT,
     (-1, 0) : UP,
@@ -58,18 +60,41 @@ class Robot:
         self.mby = mby
 
         self.available = True
-        self.aim_type = "" # 目标为空""，货物"good", 泊位"berth"
-        self.aim_pos = (0, 0) # 目标位置
+        self.aim_type = "" # 目标为空""，货物"good", 泊位"berth", 碰撞后恢复空地"space"
+        self.aim_type_raw = "" # 碰撞后用来保存当前目标类型
+        self.aim_pos = (-1, -1) # 目标位置
+        self.aim_pos_raw = (-1, -1) # 碰撞后用来保存当前目标
         self.direction_list = []
         self.direction = STOP
         self.coclision_solved = False
         self.coclision_higher = False
 
+        self.pos_direction_dict ={}
+
     def get_next_pos(self):
         pos_change = direction2pos_change[self.direction]
         next_pos = (self.x+pos_change[0], self.y+pos_change[1])
         return next_pos
+    
+    # 更新方向
+    def update_direction(self):
+        if (self.x,self.y) in self.pos_direction_dict.keys():
+            self.direction = self.pos_direction_dict[(self.x, self.y)]
+        else:
+            self.direction = STOP
 
+    # 设置新目标并保存之前目标
+    def set_backup_aim(self, new_aim_pos, new_aim_type="space"):
+        self.aim_pos_raw = self.aim_pos
+        self.aim_type_raw = self.aim_type
+        self.aim_pos = new_aim_pos
+        self.aim_type = new_aim_type
+
+    # 恢复目标
+    def recover_aim(self):
+        self.aim_pos = self.aim_pos_raw
+        self.aim_type = self.aim_type_raw
+        logger.debug("recover successsful!")
 
 robot = [Robot(i) for i in range(robot_num + 10)]
 
@@ -113,6 +138,7 @@ class Node:
             robot[robot_id_count].x = x
             robot[robot_id_count].y = y
             robot_id_count += 1
+        self.type_raw = self.type # 原始类型，可能避障更改
         # 后续用于机器人寻路，只对陆地有效
         self.berth_visited_list = [False for _ in range(berth_num)] # 是否有到各个泊位的路径
         self.berth_best_direction_list = [RIGHT for _ in range(berth_num)] # 到该泊位路径的最短方向
@@ -208,13 +234,15 @@ class Map:
     
     # 机器人位置与目标位置的A*算法
     def pos_A_star(self, start, aim):
-        logger.info(f"A*: ({start})->({aim})")
+        logger.debug(f"A*: ({start})->({aim})")
         q = PriorityQueue()
         q.put((0, start))
         came_from = {}
         cost_so_far = {}
         came_from[start] = None
         cost_so_far[start] = 0
+        if start == (133, 101):
+            logger.debug(f"start: {start}")
 
         while not q.empty():
             current= q.get()[1]
@@ -242,6 +270,11 @@ class Map:
                         came_from[neighbor] = current
             
         # logger.debug(f"came_from : {came_from}")
+        if not aim in came_from.keys():
+            # 不可达
+            # logger.info(f"A* can't achieve: ({start})->({aim})")
+            return {}
+
 
         # 回溯
         tmp_pos = aim
@@ -283,6 +316,50 @@ class Map:
         return pos_direction_dict
 
 
+    # 测试该位置是否为空地
+    def test_space(self, x, y):
+        if not ((x > 0) and (x < n) and (y > 0) and (y < n)):
+            return False
+        node = self.node_matrix[x][y]
+        if not node.type == '.':
+            return False
+        # 8个方向的邻居单元必须为陆地
+        if not (((x-1) > 0) and ((y-1) > 0) and self.node_matrix[x-1][y-1].type == '.'):
+            return False
+        if not (((x-1) > 0) and self.node_matrix[x-1][y].type == '.'):
+            return False
+        if not (((x-1) > 0) and ((y+1) < n) and self.node_matrix[x-1][y+1].type == '.'):
+            return False
+        if not (((y-1) > 0) and self.node_matrix[x][y-1].type == '.'):
+            return False
+        if not (((y+1) < n) and self.node_matrix[x][y+1].type == '.'):
+            return False
+        if not (((x+1) < n) and ((y-1) > 0) and self.node_matrix[x+1][y-1].type == '.'):
+            return False
+        if not (((x+1) < n) and self.node_matrix[x+1][y].type == '.'):
+            return False
+        if not (((x+1) < n) and ((y+1) < n) and self.node_matrix[x+1][y+1].type == '.'):
+            return False
+        return True
+
+    # 查找离当前位置欧式距离最近的空地
+    def search_space(self, x, y):
+        for i in range(1, n):
+            for j in range(i+1):
+                test_x, test_y = x + i, y + j
+                if self.test_space(test_x, test_y):
+                    return test_x, test_y
+                test_x, test_y = x + i, y - j
+                if self.test_space(test_x, test_y):
+                    return test_x, test_y
+                test_x, test_y = x - i, y + j
+                if self.test_space(test_x, test_y):
+                    return test_x, test_y
+                test_x, test_y = x - i, y - j
+                if self.test_space(test_x, test_y):
+                    return test_x, test_y
+        return (-1, -1)
+                
 m = Map()
 
 money = 0
@@ -356,7 +433,7 @@ flag = False # 第0个机器人把第0个货物运达第0个泊位的标识符
 
 # 单帧输出
 def Output():
-    logger.debug(f"frame {id}")
+    logger.debug(f"\n=====frame {id}=====")
     if id==1:
         # 初始：0号轮船到达0号泊位
         print(f"ship 0 0")
@@ -382,6 +459,69 @@ def Output():
         #             row += node.type
         #     logger.info(row)
 
+    # 主动检测碰撞
+    logger.debug("start conclision search")
+        
+    for i in range(10):
+        robot_i = robot[i]
+        robot_i.update_direction()
+        # 检测比自己id大的机器人，是否碰撞
+        for j in range(i+1, 10):
+            robot_j = robot[j]
+            if (robot_i.available == False) or (robot_j.available == False):
+                continue
+            robot_j.update_direction()
+            robot_i_pos = (robot_i.x, robot_i.y)
+            robot_i_next_pos = robot_i.get_next_pos()
+            robot_j_pos = (robot_j.x, robot_j.y)
+            robot_j_next_pos = robot_j.get_next_pos()
+            colision_flag = False
+            colision_type = -1
+            if robot_i_next_pos == robot_j_next_pos:
+                # 间隔型碰撞 
+                colision_flag = True
+                colision_type = 0
+                logger.debug(f"robot ({i}[{robot_i_pos}]),({j}[{robot_j_pos}]) will colision type 0")
+            elif (robot_i_next_pos == robot_j_pos) and (robot_j_next_pos == robot_i_pos) :
+                # 紧贴型碰撞
+                colision_flag = True
+                colision_type = 1
+                logger.debug(f"robot ({i}[{robot_i_pos}]),({j}[{robot_j_pos}]) will colision type 1")
+            
+            if colision_flag:
+                # id越小优先级越高
+                robot_higher = robot_i
+                robot_lower = robot_j
+                # 高优先级的暂停
+                logger.debug(f"robot ({robot_higher.id}) higher, wait")
+                # 低优先级重新规划路径
+                new_obscale_pos = [-1, -1]
+                if colision_type == 0:
+                    # 间隔型碰撞
+                    robot_lower_next_pos = robot_lower.get_next_pos()
+                    new_obscale_pos[0] = robot_lower_next_pos[0]
+                    new_obscale_pos[1] = robot_lower_next_pos[1]
+                else:
+                    new_obscale_pos[0] = robot_higher.x
+                    new_obscale_pos[1] = robot_higher.y
+                logger.debug(f"new_obscale_pos : {new_obscale_pos}")
+                new_obscale_node = m.node_matrix[new_obscale_pos[0]][new_obscale_pos[1]]
+                new_obscale_node.type = '#'
+                pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), robot_lower.aim_pos) 
+                if len(pos_direction_dict) == 0:
+                    # A*不可达,先等等找一处空地
+                    logger.info(f"A* can't achieve: ({(robot_lower.x, robot_lower.y)})->robot_lower.aim_pos")
+
+                    space_aim_pos = (-1, -1) # 搜寻最近的空地
+                    space_aim_pos = m.search_space(robot_lower.x, robot_lower.y)
+                    logger.debug(f"robot ({robot_lower.id}) try to go to space {space_aim_pos}")
+                    robot_lower.set_backup_aim(space_aim_pos)
+                    pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), space_aim_pos) 
+                robot_lower.pos_direction_dict = pos_direction_dict
+                logger.debug(f"robot ({robot_lower.id}) lower, replan pos_direction_dict (A*) : {robot_lower.pos_direction_dict}")
+                
+                new_obscale_node.type = new_obscale_node.type_raw
+    logger.debug("finish conclision search")
     # TODO: 所有机器人调度
     for i in range(10):
         robot_i = robot[i]
@@ -389,67 +529,69 @@ def Output():
             # 不可用的机器人跳过
             continue
 
+        if robot_i.status == 0:
+            logger.debug(f"robot({i}) status concolision")
+            m.node_matrix[robot_i.x][robot_i.y] = '#'
+        # if robot_i.status == 0 and robot_i.coclision_solved == False:
+        #     # TODO: 被动碰撞，处于恢复状态
+        #     robot_i_pos = (robot_i.x, robot_i.y)
+        #     robot_i_next_pos = robot_i.get_next_pos()
+        #     # 先获取发生碰撞的另一个机器人id
+        #     colision_id = -1
+        #     for j in range(n):
+        #         robot_j = robot[j]
+        #         if (i == j) or (robot_j.available == False):
+        #             # 跳过自己
+        #             continue
+        #         robot_j_pos = (robot_j.x, robot_j.y)
+        #         robot_j_next_pos = robot_j.get_next_pos()
+        #         if robot_i_next_pos == robot_j_next_pos:
+        #             # 间隔型碰撞 
+        #             colision_id = j
+        #             break
+        #         elif (robot_i_next_pos == robot_j_pos) and (robot_j_next_pos == robot_i_pos):
+        #             # 紧贴型碰撞
+        #             colision_id = j
+        #             break
+        #     logger.debug(f"robot ({i}),({colision_id}) colision")
 
-        if robot_i.status == 0 and robot_i.coclision_solved == False:
-            # TODO: 发生了碰撞，处于恢复状态
-            robot_i_pos = (robot_i.x, robot_i.y)
-            robot_i_next_pos = robot_i.get_next_pos()
-            # 先获取发生碰撞的另一个机器人id
-            colision_id = -1
-            for j in range(n):
-                robot_j = robot[j]
-                if (i == j) or (robot_j.available == False):
-                    # 跳过自己
-                    continue
-                robot_j_pos = (robot_j.x, robot_j.y)
-                robot_j_next_pos = robot_j.get_next_pos()
-                if robot_i_next_pos == robot_j_next_pos:
-                    # 间隔型碰撞 
-                    colision_id = j
-                    break
-                elif (robot_i_next_pos == robot_j_pos) and (robot_j_next_pos == robot_i_pos):
-                    # 紧贴型碰撞
-                    colision_id = j
-                    break
-            logger.debug(f"robot ({i}),({colision_id}) colision")
+        #     # id越小优先级越高
+        #     robot_higher = robot_i
+        #     robot_lower = robot_j
+        #     if j < i:
+        #         robot_higher, robot_lower = robot_j, robot_i
+        #     # 高优先级的暂停，过了恢复期会自动行走
+        #     robot_higher.coclision_solved = True
+        #     robot_higher.coclision_higher = True
+        #     m.node_matrix[robot_higher.x][robot_higher.y].type = '#' # 高级robot当作障碍
+        #     logger.debug(f"robot ({robot_higher.id}) higher, wait")
 
-            # id越小优先级越高
-            robot_higher = robot_i
-            robot_lower = robot_j
-            if j < i:
-                robot_higher, robot_lower = robot_j, robot_i
-            # 高优先级的暂停，过了恢复期会自动行走
-            robot_higher.coclision_solved = True
-            robot_higher.coclision_higher = True
-            m.node_matrix[robot_higher.x][robot_higher.y].type = '#' # 高级robot当作障碍
-            logger.debug(f"robot ({robot_higher.id}) higher, wait")
-
-            # 低级robot的下一个位置也当作障碍
-            robot_lower_next_pos = robot_lower.get_next_pos()
-            m.node_matrix[robot_lower_next_pos[0]][robot_lower_next_pos[1]].type = '#' # 低级robot的下一个位置也当作障碍
-            # 低优先级重新规划路径
-            robot_lower.pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), robot_lower.aim_pos) 
-            robot_lower.coclision_solved = True
-            robot_higher.coclision_higher = False
-            logger.debug(f"robot ({robot_lower.id}) lower, replan pos_direction_dict (A*) : {robot_lower.pos_direction_dict}")
+        #     # 低级robot的下一个位置也当作障碍
+        #     robot_lower_next_pos = robot_lower.get_next_pos()
+        #     m.node_matrix[robot_lower_next_pos[0]][robot_lower_next_pos[1]].type = '#' # 低级robot的下一个位置也当作障碍
+        #     # 低优先级重新规划路径
+        #     robot_lower.pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), robot_lower.aim_pos) 
+        #     robot_lower.coclision_solved = True
+        #     robot_higher.coclision_higher = False
+        #     logger.debug(f"robot ({robot_lower.id}) lower, replan pos_direction_dict (A*) : {robot_lower.pos_direction_dict}")
         
         
-        elif robot_i.status == 0 and robot_i.coclision_solved == True:
-            # 正在处理冲突中，处在恢复期
-            pass
+        # elif robot_i.status == 0 and robot_i.coclision_solved == True:
+        #     # 正在处理冲突中，处在恢复期
+        #     pass
         
         
         else:
             # 正常走
-            if robot_i.coclision_solved == True:
-                # 刚解决完碰撞走的话要，重新设置标志
-                robot_i.coclision_solved = False
-                if robot_i.coclision_higher:
-                    m.node_matrix[robot_i.x][robot_i.y].type = '.' 
-                else:
-                    robot_i_next_pos = robot_i.get_next_pos()
-                    m.node_matrix[robot_i_next_pos[0]][robot_i_next_pos[1]].type = '.' # 恢复障碍
-                logger.debug(f"robot ({i}) recover")
+            # if robot_i.coclision_solved == True:
+            #     # 刚解决完碰撞走的话要，重新设置标志
+            #     robot_i.coclision_solved = False
+            #     if robot_i.coclision_higher:
+            #         m.node_matrix[robot_i.x][robot_i.y].type = '.' 
+            #     else:
+            #         robot_i_next_pos = robot_i.get_next_pos()
+            #         m.node_matrix[robot_i_next_pos[0]][robot_i_next_pos[1]].type = '.' # 恢复障碍
+            #     logger.debug(f"robot ({i}) recover")
             if robot_i.aim_type == "" and (not len(gds_pos_statck)==0):
                 # 没有带货，规划到最新的可达货物的路径
                 logger.info(f"robot({i}) plan start")
@@ -461,7 +603,7 @@ def Output():
                     good_node = m.node_matrix[new_good[0]][new_good[1]] 
                 # new_good = (berth[0].x, berth[0].y)
                 logger.debug(f"good {new_good} available!")
-                robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), new_good) # A*不再是方向向量了，获得路径用字典存储，方便后续的碰撞后的路径恢复
+                robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), new_good) 
                 logger.debug(f"plan pos_direction_dict (A*) : {robot_i.pos_direction_dict}")
                 logger.debug(f"robot({i})plan end")
                 robot_i.aim_type = "good"
@@ -470,10 +612,10 @@ def Output():
             elif robot_i.aim_type == "good":
                 # 移动到货物的位置
                 robot_pos = (robot_i.x, robot_i.y)
-                logger.debug(f"robot({i}) : ({robot_pos})->{robot_i.aim_pos}")
+                logger.debug(f"robot({i})|(good) : {robot_pos}->{robot_i.aim_pos}")
                 if not robot_i.aim_pos == robot_pos:
-                    direction = robot_i.pos_direction_dict[robot_pos]
-                    robot_i.direction = direction
+                    robot_i.update_direction()
+                    direction = robot_i.direction
                     print(f"move {i} {direction}")
                 else:
                     print(f"get {i}")
@@ -487,18 +629,35 @@ def Output():
             elif robot_i.aim_type == "berth":
                 # 带货了，移动到0号泊位
                 robot_pos = (robot_i.x, robot_i.y)
-                logger.debug(f"robot({i}) : {robot_pos}->{robot_i.aim_pos}")
+                logger.debug(f"robot({i})|(berth) : {robot_pos}->{robot_i.aim_pos}")
                 node = m.node_matrix[robot_pos[0]][robot_pos[1]]
                 if node.type == 'B':
                     # 到了泊位就放下
                     print(f"pull {i}")
-                    logger.info(f"robot({i})货物pull成功")
+                    logger.debug(f"robot({i})货物pull成功")
                     robot_i.aim_type = ""
                     berth[0].good_queue.put(0) # 随便放一个元素，只是占位置用的
                 else:
-                    direction = robot_i.pos_direction_dict[robot_pos]
-                    robot_i.direction = direction
+                    robot_i.update_direction()
+                    direction = robot_i.direction
                     print(f"move {i} {direction}")
+            elif robot_i.aim_type == "space":
+                # 解决冲突,移动到空地上
+                robot_pos = (robot_i.x, robot_i.y)
+                logger.debug(f"robot({i})|(space) : {robot_pos}->{robot_i.aim_pos}")
+                node = m.node_matrix[robot_pos[0]][robot_pos[1]]
+                if not robot_i.aim_pos == robot_pos:
+                    # 正在往空地移动
+                    robot_i.update_direction()
+                    direction = robot_i.direction
+                    print(f"move {i} {direction}")
+                else:
+                    # 移动到空地,恢复目标
+                    logger.debug(f"robot({i}) recover aim: {robot_i.aim_pos_raw}")
+                    robot_i.recover_aim()
+                    robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), robot_i.aim_pos)
+                    logger.debug(f"pos_direction_dict(space recover) : {robot_i.pos_direction_dict}")
+
     
     # TODO: 所有轮船调度
     # for i in range(5):
@@ -520,8 +679,7 @@ def Output():
                 berth_i.loaded_good_num += 1
                 logger.debug(f"berth({i}) : {berth_i.loaded_good_num }/{boat_capacity}")
                 # if berth_i.loaded_good_num == boat_capacity:
-                # if berth_i.loaded_good_num == 3: # 测试一下装满3个货就走
-                if berth_i.loaded_good_num == boat_capacity: # 测试一下装满3个货就走
+                if berth_i.loaded_good_num == 3: # 测试一下装满3个货就走
                     # 货装满了，轮船出发
                     print(f"go {berth_i.boat_id}")
                     logger.debug(f"berth({i}) full, boat({berth_i.boat_id}) go!")
