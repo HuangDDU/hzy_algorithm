@@ -413,7 +413,7 @@ flag = False # 第0个机器人把第0个货物运达第0个泊位的标识符
 
 # 单帧输出
 def Output():
-    logger.debug(f"\n=====frame {id}=====")
+    logger.debug(f"\n=====frame:{id}, money:{money}=====")
     # if id==1:
     #     # 初始：0号轮船到达0号泊位
     #     print(f"ship 0 0")
@@ -560,19 +560,24 @@ def Output():
 
     # TODO: 所有轮船调度
     # for i in range(5):
-    for i in range(1):
+    for i in range(5):
         boat_i = boat[i]
         if boat_i.status == 1:
             if boat_i.pos == -1:
                 # 轮船到达虚拟点, 立即回到泊位
-                logger.debug(f"boat({i}) reach virtul node: plan to berth({i})")
+                logger.debug(f"boat({i}) reach virtual node: plan to berth({0})")
                 print(f"ship {i} 0")
             else:
                 # 轮船到达泊位
-                if berth[i].boat_id == i:
-
-                logger.debug(f"boat({i}) reach berth({boat_i.pos})")
+                logger.debug(f"boat({i}) reached berth({boat_i.pos})")
                 berth[boat_i.pos].boat_id = i
+        elif boat_i.status == 2:
+            logger.debug(f"boat({i}) is waiting for berth({0})")
+        else:
+            if boat_i.pos == -1:
+                logger.debug(f"boat({i}) is going to virtual node")
+            else:
+                logger.debug(f"boat({i}) is going to berth({boat_i.pos})")
 
     # TODO: 所有泊位调度
     # for i in range(berth_num):
@@ -587,7 +592,6 @@ def Output():
                 berth_i.loaded_good_num += 1
                 logger.debug(f"berth({i}) : {berth_i.loaded_good_num }/{boat_capacity}")
                 if berth_i.loaded_good_num == boat_capacity:
-                # if berth_i.loaded_good_num == 3: # 测试一下装满3个货就走
                     # 货装满了，轮船出发
                     print(f"go {berth_i.boat_id}")
                     logger.debug(f"berth({i}) full, boat({berth_i.boat_id}) go!")
@@ -598,7 +602,7 @@ def Output():
     # TODO: 0号轮船等到最后才走压着帧数
     max_frame = 15000
     if id == max_frame - berth[0].transport_time:
-        print("go 0") # 有标记了，装上货物后开往虚拟点
+        print(f"go {berth[0].boat_id}") # 有标记了，装上货物后开往虚拟点
         logger.info(f"轮船出发")
     return
 
@@ -613,3 +617,4 @@ if __name__ == "__main__":
         print("OK")
 
         sys.stdout.flush()
+    logger.debug(f"money:{money}")
