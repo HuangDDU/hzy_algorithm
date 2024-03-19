@@ -51,6 +51,7 @@ class Planner:
         constraints = Constraints()
 
         # Compute path for each agent using low level planner
+        # 初次使用STAstar
         solution = dict((agent, self.calculate_path(agent, constraints, None)) for agent in self.agents)
 
         open = []
@@ -60,6 +61,7 @@ class Planner:
             # Min heap for quick extraction
             open.append(node)
 
+        # 多线程求解
         manager = mp.Manager()
         iter_ = 0
         while open and iter_ < max_iter:
@@ -191,7 +193,7 @@ class Planner:
                        goal_times: Dict[int, Set[Tuple[int, int]]]) -> np.ndarray:
         return self.st_planner.plan(agent.start, 
                                     agent.goal, 
-                                    constraints.setdefault(agent, dict()), 
+                                    constraints.setdefault(agent, dict()),  # 当前机器人所占cell设置为空
                                     semi_dynamic_obstacles=goal_times,
                                     max_iter=self.low_level_max_iter, 
                                     debug=self.debug)
