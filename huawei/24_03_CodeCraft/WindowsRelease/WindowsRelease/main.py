@@ -292,26 +292,6 @@ class Map:
         
         # # 输出路径
         pos_direction_dict = dict(zip(pos_list, direction_list))
-        # for i in range(n):
-        #     row = ""
-        #     for j in range(n):
-        #         node = m.node_matrix[i][j]
-        #         pos = (node.x, node.y)
-        #         if pos == aim:
-        #             row += "👑" 
-        #         elif pos in pos_direction_dict.keys() and node.type == '.':
-        #                 direction = pos_direction_dict[pos]
-        #                 if direction == UP:
-        #                     row += '↑'
-        #                 elif direction == DOWN:
-        #                     row += '↓'
-        #                 elif direction == LEFT:
-        #                     row += '←'
-        #                 else:
-        #                     row += '→'
-        #         else:
-        #             row += node.type
-        #     logger.info(row)
         
         return pos_direction_dict
 
@@ -434,34 +414,12 @@ flag = False # 第0个机器人把第0个货物运达第0个泊位的标识符
 # 单帧输出
 def Output():
     logger.debug(f"\n=====frame {id}=====")
-    if id==1:
-        # 初始：0号轮船到达0号泊位
-        print(f"ship 0 0")
-        
-        # for i in ch:
-        #     logger.info(f"{i}")
-        #     # 打印所有点到0号泊位的最短路径
-        # for i in range(n):
-        #     row = ""
-        #     for j in range(n):
-        #         node = m.node_matrix[i][j]
-        #         if node.type == '.':
-        #             direction = node.berth_best_direction_list[0]
-        #             if direction == UP:
-        #                 row += '↑'
-        #             elif direction == DOWN:
-        #                 row += '↓'
-        #             elif direction == LEFT:
-        #                 row += '←'
-        #             else:
-        #                 row += '→'
-        #         else:
-        #             row += node.type
-        #     logger.info(row)
+    # if id==1:
+    #     # 初始：0号轮船到达0号泊位
+    #     print(f"ship 0 0")
 
     # 主动检测碰撞
-    logger.debug("start conclision search")
-        
+    logger.debug("start robot conclision search")
     for i in range(10):
         robot_i = robot[i]
         robot_i.update_direction()
@@ -521,7 +479,8 @@ def Output():
                 logger.debug(f"robot ({robot_lower.id}) lower, replan pos_direction_dict (A*) : {robot_lower.pos_direction_dict}")
                 
                 new_obscale_node.type = new_obscale_node.type_raw
-    logger.debug("finish conclision search")
+    logger.debug("finish robot conclision search")
+    
     # TODO: 所有机器人调度
     for i in range(10):
         robot_i = robot[i]
@@ -531,67 +490,8 @@ def Output():
 
         if robot_i.status == 0:
             logger.debug(f"robot({i}) status concolision")
-            m.node_matrix[robot_i.x][robot_i.y] = '#'
-        # if robot_i.status == 0 and robot_i.coclision_solved == False:
-        #     # TODO: 被动碰撞，处于恢复状态
-        #     robot_i_pos = (robot_i.x, robot_i.y)
-        #     robot_i_next_pos = robot_i.get_next_pos()
-        #     # 先获取发生碰撞的另一个机器人id
-        #     colision_id = -1
-        #     for j in range(n):
-        #         robot_j = robot[j]
-        #         if (i == j) or (robot_j.available == False):
-        #             # 跳过自己
-        #             continue
-        #         robot_j_pos = (robot_j.x, robot_j.y)
-        #         robot_j_next_pos = robot_j.get_next_pos()
-        #         if robot_i_next_pos == robot_j_next_pos:
-        #             # 间隔型碰撞 
-        #             colision_id = j
-        #             break
-        #         elif (robot_i_next_pos == robot_j_pos) and (robot_j_next_pos == robot_i_pos):
-        #             # 紧贴型碰撞
-        #             colision_id = j
-        #             break
-        #     logger.debug(f"robot ({i}),({colision_id}) colision")
-
-        #     # id越小优先级越高
-        #     robot_higher = robot_i
-        #     robot_lower = robot_j
-        #     if j < i:
-        #         robot_higher, robot_lower = robot_j, robot_i
-        #     # 高优先级的暂停，过了恢复期会自动行走
-        #     robot_higher.coclision_solved = True
-        #     robot_higher.coclision_higher = True
-        #     m.node_matrix[robot_higher.x][robot_higher.y].type = '#' # 高级robot当作障碍
-        #     logger.debug(f"robot ({robot_higher.id}) higher, wait")
-
-        #     # 低级robot的下一个位置也当作障碍
-        #     robot_lower_next_pos = robot_lower.get_next_pos()
-        #     m.node_matrix[robot_lower_next_pos[0]][robot_lower_next_pos[1]].type = '#' # 低级robot的下一个位置也当作障碍
-        #     # 低优先级重新规划路径
-        #     robot_lower.pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), robot_lower.aim_pos) 
-        #     robot_lower.coclision_solved = True
-        #     robot_higher.coclision_higher = False
-        #     logger.debug(f"robot ({robot_lower.id}) lower, replan pos_direction_dict (A*) : {robot_lower.pos_direction_dict}")
-        
-        
-        # elif robot_i.status == 0 and robot_i.coclision_solved == True:
-        #     # 正在处理冲突中，处在恢复期
-        #     pass
-        
         
         else:
-            # 正常走
-            # if robot_i.coclision_solved == True:
-            #     # 刚解决完碰撞走的话要，重新设置标志
-            #     robot_i.coclision_solved = False
-            #     if robot_i.coclision_higher:
-            #         m.node_matrix[robot_i.x][robot_i.y].type = '.' 
-            #     else:
-            #         robot_i_next_pos = robot_i.get_next_pos()
-            #         m.node_matrix[robot_i_next_pos[0]][robot_i_next_pos[1]].type = '.' # 恢复障碍
-            #     logger.debug(f"robot ({i}) recover")
             if robot_i.aim_type == "" and (not len(gds_pos_statck)==0):
                 # 没有带货，规划到最新的可达货物的路径
                 logger.info(f"robot({i}) plan start")
@@ -658,15 +558,21 @@ def Output():
                     robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), robot_i.aim_pos)
                     logger.debug(f"pos_direction_dict(space recover) : {robot_i.pos_direction_dict}")
 
-    
     # TODO: 所有轮船调度
     # for i in range(5):
     for i in range(1):
         boat_i = boat[i]
-        if (boat_i.status == 1) and (not boat_i.pos == -1):
-            # 轮船到达泊位
-            logger.debug(f"boat({i}) reach berth({boat_i.pos})")
-            berth[boat_i.pos].boat_id = boat_i.id
+        if boat_i.status == 1:
+            if boat_i.pos == -1:
+                # 轮船到达虚拟点, 立即回到泊位
+                logger.debug(f"boat({i}) reach virtul node: plan to berth({i})")
+                print(f"ship {i} 0")
+            else:
+                # 轮船到达泊位
+                if berth[i].boat_id == i:
+
+                logger.debug(f"boat({i}) reach berth({boat_i.pos})")
+                berth[boat_i.pos].boat_id = i
 
     # TODO: 所有泊位调度
     # for i in range(berth_num):
@@ -675,11 +581,13 @@ def Output():
         if not berth_i.boat_id == -1:
             # 当前泊位有船则开始装货
             for j in range(berth_i.loading_speed):
+                if berth_i.good_queue.empty():
+                    break
                 berth_i.good_queue.get() # 取出一个货
                 berth_i.loaded_good_num += 1
                 logger.debug(f"berth({i}) : {berth_i.loaded_good_num }/{boat_capacity}")
-                # if berth_i.loaded_good_num == boat_capacity:
-                if berth_i.loaded_good_num == 3: # 测试一下装满3个货就走
+                if berth_i.loaded_good_num == boat_capacity:
+                # if berth_i.loaded_good_num == 3: # 测试一下装满3个货就走
                     # 货装满了，轮船出发
                     print(f"go {berth_i.boat_id}")
                     logger.debug(f"berth({i}) full, boat({berth_i.boat_id}) go!")
