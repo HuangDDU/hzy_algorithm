@@ -8,7 +8,7 @@ from queue import Queue, PriorityQueue
 import logging
 logger = logging.getLogger()
 # 文件保存
-file_handler = logging.FileHandler("main_03_10_robot0.log", "w", encoding="utf-8")
+file_handler = logging.FileHandler("main.log", "w", encoding="utf-8")
 logger.addHandler(file_handler)
 # 格式
 # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
