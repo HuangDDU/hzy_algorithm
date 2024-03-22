@@ -1,4 +1,3 @@
-
 import sys
 import random
 import numpy as np
@@ -40,6 +39,13 @@ pos_change2dirction = {
     (0, -1) : LEFT,
     (-1, 0) : UP,
     (1, 0) : DOWN,
+}
+# 反向字典
+rev_direction_dict = {
+    RIGHT : LEFT,
+    LEFT : RIGHT,
+    UP : DOWN,
+    DOWN : UP
 }
 
 # 接受输入的实体类部分
@@ -165,8 +171,10 @@ class Node:
         self.berth_best_direction_list = [STOP for _ in range(berth_num)] # 到该泊位路径的最短方向
         self.berth_distance_list= [MAX_DISTANCE for _ in range(berth_num)] # 到该泊位路径的长度
         self.berth_best_pos_direction_dict = [{} for _ in range(berth_num)] # 回溯得到的路径
+        self.nearset_berth_pos_list = [(-1, -1) for _ in range(berth_num)]# 标记最近的berth的坐标
     
         self.berth_id = -1 # 归属泊位号
+
 
 
 class Map:
@@ -210,7 +218,9 @@ class Map:
                     node.berth_best_direction_list[berth_id] = DOWN
                     node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = DOWN
-                    # logger.info(f"{node.x}, {node.y}, DOWN")
+                    node.nearset_berth_pos_list[berth_id] = (berth_x, y)
+                    # logger.debug(f"{node.x}, {node.y}, DOWN")
+                    # logger.debug(f"nearset_berth_pos : {node.nearset_berth_pos_list[berth_id]}")
         if berth_x+4 < n:
             for y in range(berth_y, berth_y+4):
                 node = self.node_matrix[berth_x+4][y]
@@ -220,7 +230,9 @@ class Map:
                     node.berth_best_direction_list[berth_id] = UP
                     node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = UP
-                    # logger.info(f"{node.x}, {node.y}, UP")
+                    node.nearset_berth_pos_list[berth_id] = (berth_x+3, y)
+                    # logger.debug(f"{node.x}, {node.y}, UP")
+                    # logger.debug(f"nearset_berth_pos : {node.nearset_berth_pos_list[berth_id]}")
         if berth_y > 0:
             for x in range(berth_x, berth_x+4):
                 node = self.node_matrix[x][berth_y-1]
@@ -230,7 +242,9 @@ class Map:
                     node.berth_best_direction_list[berth_id] = RIGHT
                     node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = RIGHT
-                    # logger.info(f"{node.x}, {node.y}, RIGHT")
+                    node.nearset_berth_pos_list[berth_id] = (x, berth_y)
+                    # logger.debug(f"{node.x}, {node.y}, RIGHT")
+                    # logger.debug(f"nearset_berth_pos : {node.nearset_berth_pos_list[berth_id]}")
         if berth_y+4 < n:
             for x in range(berth_x, berth_x+4):
                 node = self.node_matrix[x][berth_y+4]
@@ -240,8 +254,9 @@ class Map:
                     node.berth_best_direction_list[berth_id] = LEFT
                     node.berth_distance_list[berth_id] = 1
                     node.berth_best_pos_direction_dict[berth_id][(node.x, node.y)] = LEFT
-                    # logger.info(f"{node.x}, {node.y}, LEFT")
-        
+                    node.nearset_berth_pos_list[berth_id] = (x, berth_y+3)
+                    # logger.debug(f"{node.x}, {node.y}, LEFT")
+                    # logger.debug(f"nearset_berth_pos : {node.nearset_berth_pos_list[berth_id]}")
         # 深度优先遍历
         while not q.empty():
             x, y = q.get()
@@ -249,6 +264,8 @@ class Map:
             for (neighbor_x, neighbor_y), direction in self.get_neighbor_list(x, y):
                 neighbor_node = self.node_matrix[neighbor_x][neighbor_y]
                 if neighbor_node.type == '.' and neighbor_node.berth_visited_list[berth_id]==False:
+                    neighbor_node.nearset_berth_pos_list[berth_id] = node.nearset_berth_pos_list[berth_id] # 最近berth点不变
+                    # logger.debug(f"x={x}, y={y}, nearset_berth_pos{neighbor_node.nearset_berth_pos_list[berth_id]}")
                     neighbor_node.berth_distance_list[berth_id] = node.berth_distance_list[berth_id] + 1
                     # 对没有访问过的陆地点设置
                     neighbor_node.berth_visited_list[berth_id] = True
@@ -293,8 +310,6 @@ class Map:
         cost_so_far = {}
         came_from[start] = None
         cost_so_far[start] = 0
-        if start == (133, 101):
-            logger.debug(f"start: {start}")
 
         while not q.empty():
             current= q.get()[1]
@@ -324,7 +339,7 @@ class Map:
         # logger.debug(f"came_from : {came_from}")
         if not aim in came_from.keys():
             # 不可达
-            # logger.info(f"A* can't achieve: ({start})->({aim})")
+            # logger.debug(f"A* can't achieve: ({start})->({aim})")
             return {}
 
 
@@ -339,8 +354,8 @@ class Map:
             dirction = pos_change2dirction[(tmp_pos[0]-pre_pos[0], tmp_pos[1]-pre_pos[1])]
             direction_list.append(dirction)
             tmp_pos = pre_pos
-        # logger.info(f"pos_list : {pos_list}")
-        # logger.info(f"direction_list : {direction_list}")
+        # logger.debug(f"pos_list : {pos_list}")
+        # logger.debug(f"direction_list : {direction_list}")
         
         # # 输出路径
         pos_direction_dict = dict(zip(pos_list, direction_list))
@@ -653,7 +668,7 @@ def Output():
                 pos_direction_dict = m.pos_A_star((robot_lower.x, robot_lower.y), robot_lower.aim_pos) 
                 if len(pos_direction_dict) == 0:
                     # A*不可达,先等等找一处空地
-                    logger.info(f"A* can't achieve: ({(robot_lower.x, robot_lower.y)})->robot_lower.aim_pos")
+                    logger.debug(f"A* can't achieve: ({(robot_lower.x, robot_lower.y)})->robot_lower.aim_pos")
 
                     space_aim_pos = (-1, -1) # 搜寻最近的空地
                     space_aim_pos = m.search_space(robot_lower.x, robot_lower.y)
@@ -680,19 +695,9 @@ def Output():
         else:
             if robot_i.aim_type == "":
                 # 没有带货，规划到最新的可达货物的路径
-                logger.info(f"robot({i}) plan start")
+                logger.debug(f"robot({i}) plan start")
                 
                 berth_item = berth[robot_i.berth_id]
-                # new_good_stack = berth_item.new_good_stack
-                # if len(new_good_stack) > 0:
-                #     new_good = new_good_stack.pop()
-                #     logger.debug(f"robot({i}) have available good({new_good}) for berth ({berth_item.id})")
-                #     robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), new_good)
-                #     logger.debug(f"plan pos_direction_dict (A*) : {robot_i.pos_direction_dict}")
-                #     robot_i.aim_type = "good"
-                #     robot_i.aim_pos = new_good 
-                # else:
-                #     logger.debug(f"robot({i}) have no available good for berth ({berth_item.id})")
 
                 # TODO: 修改，从优先级队列中取货
                 new_good_queue = berth_item.new_good_queue
@@ -705,17 +710,36 @@ def Output():
                         # 此时没有考虑，碰撞，直接认为不会超时
                         logger.debug(f"robot({i}) have available good({new_good}) for berth ({berth_item.id})")
                         # 暂时主动寻路
-                        robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), (new_good.x, new_good.y))
-                        logger.debug(f"plan pos_direction_dict (A*) : {robot_i.pos_direction_dict}")
+                        # robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), (new_good.x, new_good.y))
+                        pos_direction_dict = {}
+                        
                         # TODO: 以后可能还需要复用bfs寻路
-                        # if m.node_matrix[robot_i.x][robot_i.y].type == 'B':
-                        #     # 在泊位，则原本BFS得到的路径逆转即可
-                        #     logger.debug(f"pos_direction_dict(bfs reverse) : {robot_i.pos_direction_dict}")
-                            
-                        # else:
-                        #     # 主动寻路
-                        #     robot_i.pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), (new_good.x, new_good.y))
-                        #     logger.debug(f"plan pos_direction_dict (A*) : {robot_i.pos_direction_dict}")
+                        robot_node = m.node_matrix[robot_i.x][robot_i.y]
+                        if robot_node.type == 'B':
+                            good_node = m.node_matrix[new_good.x][new_good.y]
+                            # 在泊位，则原本BFS得到的路径逆转+Berth局部A*
+                            bfs_pos_direction_dict = good_node.berth_best_pos_direction_dict[good_node.berth_id]
+                            # logger.debug(f"bfs_pos_direction_dict(bfs) : {bfs_pos_direction_dict}")
+                            reversed_bfs_pos_direction_dict =  {} # 原本BFS得到的路径逆转
+                            for pos, direction in bfs_pos_direction_dict.items():
+                                rev_rection = rev_direction_dict[direction]
+                                pos_change = direction2pos_change[direction]
+                                next_pos = (pos[0]+pos_change[0], pos[1]+pos_change[1])
+                                reversed_bfs_pos_direction_dict[next_pos] = rev_rection
+                            logger.debug(f"pos_direction_dict(bfs reverse) : {reversed_bfs_pos_direction_dict}")
+                            nearset_berth_pos = good_node.nearset_berth_pos_list[good_node.berth_id] # 标记最近的berth的坐标，作为Berth局部A*的终止点
+                            logger.debug(f"nearset_berth_pos : {nearset_berth_pos}")
+                            pos_direction_dict =  m.pos_A_star((robot_i.x, robot_i.y), nearset_berth_pos) # Berth局部A*，5步只能能完成
+                            logger.debug(f"pos_direction_dict(berth local) : {pos_direction_dict}")
+                            pos_direction_dict.update(reversed_bfs_pos_direction_dict)
+                            logger.debug(f"pos_direction_dict(merge) : {pos_direction_dict}") # 路径拼接
+
+                        else:
+                            # 主动寻路，整体A*
+                            pos_direction_dict = m.pos_A_star((robot_i.x, robot_i.y), (new_good.x, new_good.y))
+                            logger.debug(f"pos_direction_dict (A*) : {pos_direction_dict}")
+                        robot_i.pos_direction_dict = pos_direction_dict
+                        logger.debug(f"plan pos_direction_dict : {robot_i.pos_direction_dict}")
                         robot_i.aim_type = "good"
                         robot_i.aim_pos = (new_good.x, new_good.y)
                         break # 有货了就跳出去
@@ -738,7 +762,7 @@ def Output():
                     print(f"move {i} {direction}")
                 else:
                     print(f"get {i}")
-                    logger.info(f"robot({i})货物get成功")
+                    logger.debug(f"robot({i})货物get成功")
                     robot_i.aim_type = "berth"
                     # TODO: 获取原本BFS回溯的路径作为初始路径
                     node = m.node_matrix[robot_i.x][robot_i.y]
