@@ -7,26 +7,26 @@ using namespace std;
 
 vector<vector<int>> threeSum(vector<int> &nums) {
   vector<vector<int>> result;
-  sort(nums.begin(), nums.end()); // 排序后方便去重
-  for(int first=0; first< nums.size(); first++){
+  sort(nums.begin(), nums.end());  // 排序后方便去重
+  for (int first = 0; first < nums.size(); first++) {
     // 固定好第一个值，后续两个指针为左右指针
-    if(first>0 && nums[first] == nums[first-1]) continue; // 去重
-    int third = nums.size()-1; // 右指针初始化
-    for(int second = first+1; second<nums.size(); second++){
-      if(second>first+1 && nums[second] == nums[second-1]) continue; // 去重
-      while(second<third && nums[first]+nums[second]+nums[third]>0){
+    if (first > 0 && nums[first] == nums[first - 1]) continue;  // 去重
+    int third = nums.size() - 1;                                // 右指针初始化
+    for (int second = first + 1; second < nums.size(); second++) {
+      if (second > first + 1 && nums[second] == nums[second - 1])
+        continue;  // 去重
+      while (second < third && nums[first] + nums[second] + nums[third] > 0) {
         third--;
       }
-      if(second == third){
-        break; // 退出条件
-      }else if(nums[first]+nums[second]+nums[third] == 0){
-        result.push_back({nums[first], nums[second], nums[third]}); // 找到了一个解
-      }else{
-        continue; // 当前左指针找不到解的，保持右指针不动，for循环控制左指针移动
+      if (second == third) {
+        break;  // 退出条件
+      } else if (nums[first] + nums[second] + nums[third] == 0) {
+        result.push_back(
+            {nums[first], nums[second], nums[third]});  // 找到了一个解
+      } else {
+        continue;  // 当前左指针找不到解的，保持右指针不动，for循环控制左指针移动
       }
     }
-
-
   }
   return result;
 }
