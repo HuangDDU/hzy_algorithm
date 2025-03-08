@@ -5,25 +5,25 @@ using namespace std;
 
 class Solution {
   // void exchange_(vector<vector<int>>& matrix, int)
- public:
-  void rotate(vector<vector<int>>& matrix) {
+public:
+  void rotate(vector<vector<int>> &matrix) {
     int tmp = 0;
     for (int i = 0; i < (int)(matrix.size() / 2); i++) {
-      int n = matrix.size() - 2 * i;  // 方阵边长
+      int n = matrix.size() - 2 * i; // 方阵边长
       int start = i, end = i + n - 1;
       // 更新顶点， 交换三次
-      tmp = matrix[start][start];  // 左上角->右上角
+      tmp = matrix[start][start]; // 左上角->右上角
       matrix[start][start] = matrix[start][end];
       matrix[start][end] = tmp;
-      tmp = matrix[end][start];  // 左下角->左上角
+      tmp = matrix[end][start]; // 左下角->左上角
       matrix[end][start] = matrix[start][start];
       matrix[start][start] = tmp;
       // 右下角->左下角
       tmp = matrix[end][end];
       matrix[end][end] = matrix[end][start];
       matrix[end][start] = tmp;
-      //   // 更新边, 交换三次
-      //   // 左边->上边
+      // 更新边, 交换三次
+      // 左边->上边
       for (int i = 1; i < n - 1; i++) {
         tmp = matrix[start + i][start];
         matrix[start + i][start] = matrix[start][end - i];

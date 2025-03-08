@@ -11,14 +11,24 @@ struct ListNode {
 class Solution {
 public:
   ListNode *reverseList(ListNode *head) {
-    if ((head == NULL) || (head->next == NULL)) {
-      return head;
+    if (head == NULL) {
+      return NULL;
+    }
+    vector<ListNode *> rlr = reverseListRecursion(head);
+    return rlr[0];
+  }
+  vector<ListNode *> reverseListRecursion(ListNode *head) {
+    if (head->next == NULL) {
+      // 终止条件，单个节点
+      return {head, head};
     } else {
-      ListNode *next_node = head->next;
-      ListNode *reversed_next = reverseList(next_node);
-      next_node->next = head;
+      // 递归调用
+      vector<ListNode *> rlr = reverseListRecursion(head->next);
+      ListNode *reversed_head = rlr[0], *reversed_tail = rlr[1];
+      reversed_tail->next = head;
       head->next = NULL;
-      return reversed_next;
+      reversed_tail = head;
+      return {reversed_head, reversed_tail}; // 分别返回反转后的头尾节点
     }
   }
 };
