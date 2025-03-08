@@ -31,10 +31,10 @@ public:
 int main() {
   Solution solution;
   // 构造链表
-  //   int pos = 1;
-  //   vector<int> list = {3, 2, 0, -4}; // True
-  int pos = -1;
-  vector<int> list = {1}; // False
+  int pos = 1;
+  vector<int> list = {3, 2, 0, -4}; // True
+                                    //   int pos = -1;
+                                    //   vector<int> list = {1}; // False
   ListNode *head = new ListNode(list[0]);
   ListNode *p = head;
   for (int i = 1; i < list.size(); i++) {
