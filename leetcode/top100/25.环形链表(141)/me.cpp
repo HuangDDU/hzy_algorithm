@@ -46,7 +46,7 @@ int main() {
   // 添加环结点
   if (pos >= 0) {
     ListNode *loop_node = head;
-    for (int i = 1; i < pos; i++) {
+    for (int i = 1; i <= pos; i++) {
       loop_node = loop_node->next;
     }
     p->next = loop_node;
