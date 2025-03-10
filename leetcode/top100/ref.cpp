@@ -1,6 +1,7 @@
+// TODO: 快慢指针，慢指针入环之后，必然在一次圈内被快指针追上
 #include <iostream>
-#include <unordered_set>
 #include <vector>
+
 using namespace std;
 
 struct ListNode {
@@ -8,17 +9,37 @@ struct ListNode {
   ListNode *next;
   ListNode(int x) : val(x), next(NULL) {}
 };
+
 class Solution {
 public:
-  ListNode *reverseList(ListNode *head) {
-    if ((head == NULL) || (head->next == NULL)) {
-      return head;
+  ListNode *detectCycle(ListNode *head) {
+    // 移动快慢指针找环
+    bool is_loop = false;
+    ListNode *slow = head, *fast = head;
+    while (fast) {
+      slow = slow->next;
+      if (!fast->next) {
+        // 奇数个节点的时候走这里，偶数个节点的时候while循环完成退出
+        break;
+      }
+      fast = fast->next->next;
+      if (slow == fast) {
+        // 快慢指针相遇，有环
+        is_loop = true;
+		break;
+      }
+    }
+
+    if (is_loop) {
+      // 有环则从起始点开始新的指针，与慢指针同步移动后必然相遇
+      ListNode *new_p = head;
+      while (new_p != slow) {
+        new_p = new_p->next;
+        slow = slow->next;
+      }
+      return new_p;
     } else {
-      ListNode *next_node = head->next;
-      ListNode *reversed_next = reverseList(next_node);
-      next_node->next = head;
-      head->next = NULL;
-      return reversed_next;
+      return NULL;
     }
   }
 };
@@ -26,7 +47,10 @@ public:
 int main() {
   Solution solution;
   // 构造链表
-  vector<int> list = {1, 2, 3, 4, 5};
+  int pos = 1;
+  vector<int> list = {3, 2, 0, -4}; // 1
+                                    //   int pos = -1;
+                                    //   vector<int> list = {1}; // -1
   ListNode *head = new ListNode(list[0]);
   ListNode *p = head;
   for (int i = 1; i < list.size(); i++) {
@@ -35,10 +59,17 @@ int main() {
     p = node;
   }
   p->next = NULL;
-  ListNode *result = solution.reverseList(head);
-  while (result) {
-    cout << result->val << ",";
-    result = result->next;
+  // 添加环结点
+  if (pos >= 0) {
+    ListNode *loop_node = head;
+    for (int i = 1; i <= pos; i++) {
+      loop_node = loop_node->next;
+    }
+    p->next = loop_node;
   }
-  cout << endl;
+
+  // 求解
+  ListNode *result = solution.detectCycle(head);
+
+  cout << result << endl;
 }

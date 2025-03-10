@@ -1,53 +1,71 @@
-// 按层遍历，向右向下可以，向左向上条件判断
+// TODO:
+// 参考2，修改了原本链表，快慢指针（1步1次和2步1次）找中点，反转后半部分链表，开始比较
 #include <iostream>
 #include <vector>
 using namespace std;
 
+struct ListNode {
+  int val;
+  ListNode *next;
+  ListNode(int x) : val(x), next(NULL) {}
+};
+
 class Solution {
 public:
-  vector<int> spiralOrder(vector<vector<int>> &matrix) {
-    int m = matrix.size(), n = matrix[0].size();
-    vector<int> result;
-    int min_i = 0, max_i = m - 1, min_j = 0,
-        max_j = n - 1; // 初始边界，都可以碰到
-    while ((min_i <= max_i) && (min_j <= max_j)) {
-      // 向右肯定可以
-      for (int j = min_j; j <= max_j; j++) {
-        result.push_back(matrix[min_i][j]);
-      }
-      for (int i = min_i + 1; i <= max_i; i++) {
-        result.push_back(matrix[i][max_j]);
-      }
-      // 当内层至少有两层才可以
-      if ((min_i < max_i) && (min_j < max_j)) {
-        for (int j = max_j - 1; j > min_j; j--) {
-          result.push_back(matrix[max_i][j]);
-        }
-        for (int i = max_i; i > min_i; i--) {
-          result.push_back(matrix[i][min_j]);
-        }
-      }
-      // 外层遍历完后
-      min_i++, min_j++, max_i--, max_j--;
+  bool isPalindrome(ListNode *head) {
+    // 移动快慢指针找到中点
+    ListNode *slow = head, *fast = head;
+    while (fast) {
+      slow = slow->next;
+	  if(!fast->next){
+		// 奇数个节点的时候走这里，偶数个节点的时候while循环完成推出
+		break;
+	  }
+      fast = fast->next->next;
     }
-    return result;
+
+    // 反转后半部分链表
+    ListNode *end_half = reverseList(slow);
+
+    // 对比前半部分和后半部分链表
+    ListNode *start_half = head;
+    while (end_half) {
+      if (end_half->val != start_half->val) {
+        return false;
+      }
+      end_half = end_half->next;
+      start_half = start_half->next;
+    }
+    return true;
+  }
+
+  ListNode *reverseList(ListNode *head) {
+    if ((head == NULL) || (head->next == NULL)) {
+      return head;
+    } else {
+      ListNode *next_node = head->next;
+      ListNode *reversed_next = reverseList(next_node);
+      next_node->next = head;
+      head->next = NULL;
+      return reversed_next;
+    }
   }
 };
 
 int main() {
-  // vector<vector<int>> matrix = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
-  // // [1,2,3,6,9,8,7,4,5]
-  // vector<vector<int>> matrix = {{1,2,3,4},{5,6,7,8},{9,10,11,12}};
-  // [1,2,3,4,8,12,11,10,9,5,6,7]
-  vector<vector<int>> matrix = {{1, 2, 3, 4, 5},
-                                {6, 7, 8, 9, 10},
-                                {11, 12, 13, 14, 15},
-                                {16, 17, 18, 19, 20},
-                                {21, 22, 23, 24, 25}};
-  // [1,2,3,4,5,10,15,20,25,24,23,22,21,16,11,6,7,8,9,14,19,18,17,12,13]
   Solution solution;
-  vector<int> result = solution.spiralOrder(matrix);
-  for (int i : result) {
-    cout << i << " ";
+  // 构造链表
+  vector<int> list = {1, 2, 2, 1}; // True
+  ListNode *head = new ListNode(list[0]);
+  ListNode *p = head;
+  for (int i = 1; i < list.size(); i++) {
+    ListNode *node = new ListNode(list[i]);
+    p->next = node;
+    p = node;
   }
+  p->next = NULL;
+  // 求解
+  bool result = solution.isPalindrome(head);
+
+  cout << result << endl;
 }
