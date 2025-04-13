@@ -49,9 +49,9 @@ TreeNode *buildTree(vector<int> &layerorder) {
   return head;
 }
 
-int main() {
-  vector<int> layerorder = {1, NULL_FLAG, 2, 3}; // 94题目
-//   vector<int> layerorder = {3,9,20,NULL_FLAG,NULL_FLAG,15,7}; // 104题目
-  TreeNode *root = buildTree(layerorder);
-  cout << root->val << endl;
-}
+// int main() {
+//   vector<int> layerorder = {1, NULL_FLAG, 2, 3}; // 94题目
+// //   vector<int> layerorder = {3,9,20,NULL_FLAG,NULL_FLAG,15,7}; // 104题目
+//   TreeNode *root = buildTree(layerorder);
+//   cout << root->val << endl;
+// }
