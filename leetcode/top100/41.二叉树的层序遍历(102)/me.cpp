@@ -8,9 +8,10 @@ using namespace std;
 class Solution {
 public:
   vector<vector<int>> levelOrder(TreeNode *root) {
-    if(!root) return {};
+    if (!root)
+      return {};
     vector<vector<int>> result;
-    queue<pair<TreeNode *, int>> q;
+    queue<pair<TreeNode *, int>> q; // 队列中元素分别为结点和所在的层数
     int prervious_layer = 0;
     q.push(make_pair(root, 1));
     while (!q.empty()) {
@@ -19,6 +20,7 @@ public:
       TreeNode *node = tmp_pair.first;
       int layer = tmp_pair.second;
       if (layer > prervious_layer) {
+        //   碰到新的层则添加新的空数组
         result.push_back({});
         prervious_layer = layer;
       }
