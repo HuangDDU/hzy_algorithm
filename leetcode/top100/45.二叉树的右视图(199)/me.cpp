@@ -7,7 +7,6 @@ using namespace std;
 
 class Solution {
 public:
-
   vector<int> rightSideView(TreeNode *root) {
     if (!root)
       return {};
