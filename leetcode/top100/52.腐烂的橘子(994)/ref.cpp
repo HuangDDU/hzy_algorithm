@@ -50,7 +50,7 @@ public:
     if (fresh_count > 0) {
       return -1;
     } else {
-      return result;
+      return max(result, 0);
     }
   }
   bool pollution(vector<vector<int>> &grid, int i, int j) {

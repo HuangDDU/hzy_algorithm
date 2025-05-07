@@ -15,13 +15,13 @@ public:
     for (int i = 0; i < nums.size(); i++) {
       if (!visited[i]) {
         flag = false;
-        vector<bool> tmp_visited = vector<bool>(visited.begin(), visited.end());
-        tmp_visited[i] = true;
-        vector<vector<int>> tmp_result = permute_recursive(nums, tmp_visited);
+        visited[i] = true; // 这里直接在visited上修改
+        vector<vector<int>> tmp_result = permute_recursive(nums, visited);
         for (vector<int> tmp_result_item : tmp_result) {
           tmp_result_item.push_back(nums[i]);
           result.push_back(tmp_result_item);
         }
+        visited[i] = false;
       }
     }
     if (flag) {
