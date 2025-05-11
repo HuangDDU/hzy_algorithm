@@ -20,6 +20,7 @@ public:
       return;
     }
     for (int candidate : candidates) {
+      // 向后搜索
       if ((prefix.size() > 0) && (candidate < prefix.back())) {
         // 限制要求递增排列组合内元素
         continue;

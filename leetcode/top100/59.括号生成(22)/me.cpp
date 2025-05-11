@@ -9,8 +9,7 @@ public:
     generateParenthesisRecursive(n, 0, 0, "");
     return result;
   }
-  void generateParenthesisRecursive(int n, int left_over, int pair,
-                                    string prefix) {
+  void generateParenthesisRecursive(int n, int left_over, int pair, string prefix) {
     if ((pair >= n) || (left_over < 0) || (left_over > n)) {
       // 限界
       if ((pair == n) && (left_over == 0)) {
@@ -19,7 +18,7 @@ public:
       }
       return;
     }
-    // 可行解
+    // 二叉搜索树
     generateParenthesisRecursive(n, left_over + 1, pair, prefix + '(');
     generateParenthesisRecursive(n, left_over - 1, pair + 1, prefix + ')');
   }
