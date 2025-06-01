@@ -6,7 +6,7 @@ class Solution {
 public:
   bool searchMatrix(vector<vector<int>> &matrix, int target) {
     // 先搜索行，按照行首元素
-    int left = 0, right = matrix.size()-1;
+    int left = 0, right = matrix.size() - 1;
     int mid;
     while (left <= right) {
       mid = (left + right) / 2;
@@ -26,7 +26,7 @@ public:
       return false;
     }
     left = 0, right = matrix[0].size() - 1;
-    while (left < right) {
+    while (left <= right) {
       mid = (left + right) / 2;
       if (matrix[row][mid] == target) {
         return true;
@@ -43,12 +43,11 @@ public:
 };
 int main() {
   Solution solution;
-//   vector<vector<int>> matrix = {
-//       {1, 3, 5, 7}, {10, 11, 16, 20}, {23, 30, 34, 60}};
-//   int target = 3; // true
+  //   vector<vector<int>> matrix = {
+  //       {1, 3, 5, 7}, {10, 11, 16, 20}, {23, 30, 34, 60}};
+  //   int target = 3; // true
 
-
-  vector<vector<int>> matrix = {{1,3}};
+  vector<vector<int>> matrix = {{1, 3}};
   int target = 3;
   bool result = solution.searchMatrix(matrix, target);
   cout << result << endl;
